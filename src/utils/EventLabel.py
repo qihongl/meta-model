@@ -1,8 +1,8 @@
 import pickle
 import pandas as pd
-from utils.io import split_video_id
 
 EVENT_LABEL_FPATH = '../data/high_level_events/event_annotation_timing_average.csv'
+# FPS = 25
 
 class EventLabel:
     '''event labeler - run this from src '''
@@ -26,14 +26,19 @@ class EventLabel:
         return list(sub_df['evnum'])
 
 
-    def get_evtimes(self, event_id, event_num):
+    def get_evtimes(self, event_id, event_num, to_sec=False):
         '''
         input: a string in the form of '6.1.4_kinect_sep_09.pkl'
         output: a tuple - (ev start times, ev end times)
         '''
         sub_df = self.get_evs(event_id)
         event_df = sub_df.loc[sub_df['evnum'] == event_num]
-        return (float(event_df['startsec']), float(event_df['endsec']))
+        t_start, t_end = (float(event_df['startsec']), float(event_df['endsec']))
+        # if to_sec:
+        return t_start, t_end
+        # return round(t_start / FPS), round(t_end / FPS)
+
+
 
 if __name__ == "__main__":
     '''how to use'''
@@ -47,4 +52,4 @@ if __name__ == "__main__":
     evlab.get_all_evnums(event_id)
 
     (t_start, t_end) = evlab.get_evtimes(event_id, 1)
-    (t_start, t_end)
+    print(t_start, t_end)
