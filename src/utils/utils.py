@@ -46,3 +46,25 @@ def stable_softmax(x, beta=1, subtract_max=True):
     # apply temperture
     z = x / beta
     return np.exp(z) / (np.sum(np.exp(z)) + 1e-010)
+
+
+def context_to_bound_vec(context):
+    diff = np.array([0] + list(np.diff(context)))
+    diff[diff!=0] = 1
+    return diff
+
+
+def loss_to_bound_vec(loss, percentile=10):
+    loss = to_np(torch.stack(loss))
+    threshold = np.percentile(loss, percentile)
+    return loss < threshold
+
+
+if __name__ == "__main__":
+    '''how to use'''
+
+    context = np.array([1,1,1,2,2,2,1,1,1,1])
+    bound_vec = context_to_bound_vec(context)
+
+    print(context)
+    print(bound_vec)

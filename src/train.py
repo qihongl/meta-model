@@ -13,8 +13,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from model import CGRU as Agent
 from model import SimpleContext
-from utils import to_np, to_pth, split_video_id
-from utils import EventLabel, TrainValidSplit, DataLoader, Parameters
+from utils import to_np, to_pth, split_video_id, context_to_bound_vec
+from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
+from utils import padded_pointbiserialr
 sns.set(style='white', palette='colorblind', context='talk')
 
 seed = 0
@@ -37,6 +38,7 @@ stickiness = .1
 dl = DataLoader()
 tvs = TrainValidSplit()
 evlab = EventLabel()
+hb = HumanBondaries()
 p = Parameters(
     dim_hidden = dim_hidden,
     dim_context = dim_context,
@@ -125,6 +127,9 @@ ax.set_xlabel('validation video id')
 ax.set_ylabel('loss')
 sns.despine()
 
+
+
+
 for i, loss_by_events_i in enumerate(loss_by_events):
     if i > 3: break
     f, ax = plt.subplots(1,1, figsize=(10,3))
@@ -132,19 +137,72 @@ for i, loss_by_events_i in enumerate(loss_by_events):
     ax.set_title(tvs.valid_ids[i])
     ax.set_xlabel('time')
     ax.set_ylabel('loss')
-    for eb in np.array(evlab.get_bounds(tvs.valid_ids[i])) * 3:
+    event_bound_times, event_bound_vec = evlab.get_bounds(tvs.valid_ids[i])
+    for eb in event_bound_times:
         ax.axvline(eb, ls='--', color='grey')
     sns.despine()
 
 
+
 for i, log_cid_i in enumerate(log_cid):
-    if i > 2: break
+    if i > 3: break
+
+    event_bound_times, event_bound_vec = evlab.get_bounds(tvs.valid_ids[i])
     f, ax = plt.subplots(1,1, figsize=(10,3))
     ax.plot(log_cid_i)
     # ax.set_title('%.3f' % torch.stack(loss_mu_by_events).mean())
     ax.set_title(tvs.valid_ids[i])
     ax.set_xlabel('time')
     ax.set_ylabel('Context')
-    for eb in np.array(evlab.get_bounds(tvs.valid_ids[i])) * 3:
+
+    for eb in event_bound_times:
         ax.axvline(eb, ls='--', color='grey')
     sns.despine()
+
+
+r_crse = np.zeros(len(log_cid),)
+r_fine = np.zeros(len(log_cid),)
+p_crse = np.zeros(len(log_cid),)
+p_fine = np.zeros(len(log_cid),)
+for i in range(tvs.n_valid_files):
+    model_loss_bound_vec = loss_to_bound_vec(loss_by_events[i])
+    model_ctx_bound_vec = context_to_bound_vec(log_cid[i])
+    p_b_c = hb.get_bound_prob(event_id, 'coarse')
+    p_b_f = hb.get_bound_prob(event_id, 'fine')
+    r_crse[i], p_crse[i] = padded_pointbiserialr(model_loss_bound_vec, p_b_c)
+    r_fine[i], p_fine[i] = padded_pointbiserialr(model_loss_bound_vec, p_b_f)
+    # r_crse[i], p_crse[i] = padded_pointbiserialr(model_ctx_bound_vec, p_b_c)
+    # r_fine[i], p_fine[i] = padded_pointbiserialr(model_ctx_bound_vec, p_b_f)
+
+
+
+f, ax = plt.subplots(1,1, figsize=(5,4))
+sns.violinplot(r_crse, ax=ax)
+sns.despine()
+ax.set_title(f'mean r = %.3f' % (r_crse.mean()))
+ax.set_xlabel('r')
+f.tight_layout()
+
+
+f, ax = plt.subplots(1,1, figsize=(5,4))
+sns.violinplot(r_fine, ax=ax)
+ax.set_title(f'mean r = %.3f' % (r_fine.mean()))
+ax.set_xlabel('r')
+sns.despine()
+f.tight_layout()
+
+
+f, ax = plt.subplots(1,1, figsize=(5,4))
+sns.histplot(p_crse, ax=ax)
+sns.despine()
+ax.set_title(f'mean p = %.3f' % (p_crse.mean()))
+ax.set_xlabel('p')
+f.tight_layout()
+
+
+f, ax = plt.subplots(1,1, figsize=(5,4))
+sns.histplot(p_fine, ax=ax)
+ax.set_title(f'mean p = %.3f' % (p_fine.mean()))
+ax.set_xlabel('p')
+sns.despine()
+f.tight_layout()

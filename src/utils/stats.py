@@ -9,7 +9,7 @@ def padded_pointbiserialr(event_bound_vec, p_human_bound):
     pad = np.zeros(length_diff, )
     # pad the shorter vector
     if len(event_bound_vec) > len(p_human_bound):
-        p_human_bound = np.concatenate([p_human_bound], pad)
+        p_human_bound = np.concatenate([p_human_bound, pad])
     elif len(p_human_bound) > len(event_bound_vec):
         event_bound_vec = np.concatenate([event_bound_vec, pad])
     else:

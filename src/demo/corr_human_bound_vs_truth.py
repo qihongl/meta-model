@@ -14,8 +14,8 @@ evlab = EventLabel()
 hb = HumanBondaries()
 
 # choose dataset
-# event_id_list = tvs.train_ids
-event_id_list = tvs.valid_ids
+event_id_list = tvs.train_ids
+# event_id_list = tvs.valid_ids
 
 r_crse = np.zeros(len(event_id_list),)
 r_fine = np.zeros(len(event_id_list),)

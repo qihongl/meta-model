@@ -76,6 +76,4 @@ if __name__ == "__main__":
 
     event_bound, event_bound_vec = evlab.get_bounds(event_id)
 
-
-
     print(event_bonds)
