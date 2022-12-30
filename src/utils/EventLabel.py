@@ -25,8 +25,11 @@ class EventLabel:
         sub_df = self.get_evs(event_id)
         return list(sub_df['evnum'])
 
+    def get_evbonds(self, event_id):
+        sub_df = self.get_evs(event_id)
+        return list(sub_df['startsec']) + [list(sub_df['endsec'])[-1]]
 
-    def get_evtimes(self, event_id, event_num, to_sec=False):
+    def get_subev_times(self, event_id, event_num, to_sec=False):
         '''
         input: a string in the form of '6.1.4_kinect_sep_09.pkl'
         output: a tuple - (ev start times, ev end times)
@@ -40,6 +43,7 @@ class EventLabel:
 
 
 
+
 if __name__ == "__main__":
     '''how to use'''
 
@@ -47,9 +51,13 @@ if __name__ == "__main__":
 
     event_id = '1.1.1'
     sub_df = evlab.get_evs(event_id)
-    sub_df
+    sub_df['startsec']
+
 
     evlab.get_all_evnums(event_id)
 
-    (t_start, t_end) = evlab.get_evtimes(event_id, 1)
+    (t_start, t_end) = evlab.get_subev_times(event_id, 1)
     print(t_start, t_end)
+
+    event_bonds = evlab.get_evbonds(event_id)
+    print(event_bonds)

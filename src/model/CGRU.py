@@ -7,6 +7,7 @@ import math
 import torch
 import torch.nn as nn
 import numpy as np
+from utils import to_pth, to_np
 
 class CGRU(nn.Module):
 
@@ -37,6 +38,8 @@ class CGRU(nn.Module):
             self.h2o_dropout = nn.Dropout(dropout_rate)
         # miscs
         self.sigmoid_output = sigmoid_output
+        # optimization crit
+        self.criterion = nn.MSELoss()
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -66,7 +69,8 @@ class CGRU(nn.Module):
     #             torch.nn.init.constant_(wts, 0)
 
     def forward(self, x, hidden, context_t=None):
-        x = x.view(1, -1)
+        # x = x.view(1, 1, -1)
+        # context_t = context_t.view(1, 1, -1)
         # combine contextual input and x / h_prev
         gate_x = self.i2h(x) * (1 - self.ctx_wt) + self.ci2h(context_t) * self.ctx_wt
         gate_h = self.h2h(hidden) * (1 - self.ctx_wt) + self.ch2h(context_t) * self.ctx_wt
@@ -99,12 +103,22 @@ class CGRU(nn.Module):
     def try_all_contexts(self, y_t, x_t, h_t, contexts):
         # loop over all ctx ...
         # ... AND the zero context at index 0
+        # n_contexts = len(contexts)
+        # match = [None] * (n_contexts)
+        # for k in range(n_contexts):
+        #     yhat_k = self.forward_nograd(x_t, h_t, contexts[k])
+        #     match[k] = 1 - np.abs(torch.squeeze(yhat_k).numpy() - y_t)
+        # return np.array(match)
+        # x_t = X[t]
+        # y_t = X[t+1]
+        # contexts = to_pth(simple_context.context)
         n_contexts = len(contexts)
-        match = [None] * (n_contexts)
+        pe = torch.zeros(n_contexts, )
+        [None] * (n_contexts)
         for k in range(n_contexts):
-            yhat_k = self.forward_nograd(x_t, h_t, contexts[k])
-            match[k] = 1 - np.abs(torch.squeeze(yhat_k).numpy() - y_t)
-        return np.array(match)
+            yhat_k = self.forward_nograd(x_t, h_t, to_pth(contexts[k]))
+            pe[k] = self.criterion(y_t, torch.squeeze(yhat_k))
+        return to_np(pe)
 
     # def try_all_contexts(self, y_t, x_t, h_t, contexts, criterion):
     #     # loop over all ctx ...
