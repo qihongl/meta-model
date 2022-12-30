@@ -2,12 +2,6 @@ import os
 import glob
 import pickle
 
-# ID2CHAPTER = bidict({
-#     '1' : 'breakfast',
-#     '2' : 'exercising',
-#     '3' : 'cleaning',
-#     '4' : 'bathroom'
-# })
 
 def pickle_load(data_path):
     df = pickle.load(open(data_path, 'rb'))

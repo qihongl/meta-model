@@ -1,4 +1,5 @@
 import pickle
+import numpy as np
 import pandas as pd
 
 HUMAN_BOUNDARIES_FPATH = '../data/high_level_events/seg_data_analysis_clean.csv'
@@ -19,44 +20,55 @@ class HumanBondaries:
         return sub_df
 
     def get_n_workers(self, event_id, condition=None):
-        hb_i = hb.get_subdf(event_id, condition)
+        hb_i = self.get_subdf(event_id, condition)
         return len(np.unique(hb_i['workerId']))
 
     def get_workers(self, event_id, condition=None):
-        hb_i = hb.get_subdf(event_id, condition)
+        hb_i = self.get_subdf(event_id, condition)
         return list(np.unique(hb_i['workerId']))
 
-    def get_bond_times(self, event_id, condition=None, worker_id=None):
-        hb_i = hb.get_subdf(event_id, condition)
+    def get_bound_times(self, event_id, condition=None, worker_id=None):
+        hb_i = self.get_subdf(event_id, condition)
         if worker_id is None:
-            return list(hb_i['Sec'])
-        return sorted(hb_i[hb_i['workerId'] == worker_id])
+            return np.array(list(hb_i['Sec']))
+        return np.array(sorted(hb_i[hb_i['workerId'] == worker_id]))
 
-    # def get_bond_times(self, event_id, condition=None, worker_id=None):
-    #     hbts = self._get_bond_times(event_id, condition, worker_id)
-        # for
-        # hbts
+    def get_bound_prob(self, event_id, condition=None, to_sec=False, cap_at_one=True):
+        boundary_times = self.get_bound_times(event_id, condition)
+        if not to_sec:
+            boundary_times = boundary_times * 3
+        boundary_time_rounded = np.round(boundary_times)
+        #
+        T = int(max(boundary_time_rounded))
+        n = self.get_n_workers(event_id, condition)
+        prob = np.array([np.sum(boundary_time_rounded == t) / n for t in range(T)])
+        if cap_at_one:
+            prob[prob >= 1] = 1
+        return prob
 
 
 if __name__ == "__main__":
     '''how to use'''
-    import numpy as np
     import seaborn as sns
     import matplotlib.pyplot as plt
     sns.set(style='white', palette='colorblind', context='poster')
 
     hb = HumanBondaries()
 
-    event_id, condition = '1.1.1', 'coarse'
+    event_id  = '1.1.3'
+    condition = 'coarse'
 
+    boundary_times = hb.get_bound_times(event_id, condition)
 
-    workers_i = hb.get_workers(event_id, condition)
-    print(workers_i)
-
-    bts = hb.get_bond_times(event_id, condition)
-    print(bts)
-    np.round(bts)
-
-    # f, ax = plt.subplots(1,1, figsize=(20, 5))
-    # ax.stem(bts)
-    # sns.despine()
+    # condition = 'fine'
+    alpha = .7
+    p_b_c = hb.get_bound_prob(event_id, 'coarse')
+    p_b_f = hb.get_bound_prob(event_id, 'fine')
+    f, ax = plt.subplots(1,1, figsize=(12, 4))
+    ax.plot(p_b_c, label='coarse', alpha=alpha)
+    ax.plot(p_b_f, label='fine', alpha=alpha)
+    ax.set_title(f'event id: {event_id} - {condition}')
+    ax.set_xlabel('Time')
+    ax.set_ylabel('boundary probability')
+    ax.legend()
+    sns.despine()

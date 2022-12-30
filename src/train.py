@@ -126,12 +126,14 @@ ax.set_ylabel('loss')
 sns.despine()
 
 for i, loss_by_events_i in enumerate(loss_by_events):
-    if i > 2: break
+    if i > 3: break
     f, ax = plt.subplots(1,1, figsize=(10,3))
     ax.plot(loss_by_events_i)
     ax.set_title(tvs.valid_ids[i])
     ax.set_xlabel('time')
     ax.set_ylabel('loss')
+    for eb in np.array(evlab.get_bounds(tvs.valid_ids[i])) * 3:
+        ax.axvline(eb, ls='--', color='grey')
     sns.despine()
 
 
@@ -143,7 +145,6 @@ for i, log_cid_i in enumerate(log_cid):
     ax.set_title(tvs.valid_ids[i])
     ax.set_xlabel('time')
     ax.set_ylabel('Context')
+    for eb in np.array(evlab.get_bounds(tvs.valid_ids[i])) * 3:
+        ax.axvline(eb, ls='--', color='grey')
     sns.despine()
-
-
-evlab.get_evtimes(tvs.valid_ids[i])

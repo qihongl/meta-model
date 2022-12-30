@@ -1,4 +1,5 @@
 import pickle
+import numpy as np
 import pandas as pd
 
 EVENT_LABEL_FPATH = '../data/high_level_events/event_annotation_timing_average.csv'
@@ -25,9 +26,17 @@ class EventLabel:
         sub_df = self.get_evs(event_id)
         return list(sub_df['evnum'])
 
-    def get_evbonds(self, event_id):
+    def get_bounds(self, event_id, to_sec=False):
         sub_df = self.get_evs(event_id)
-        return list(sub_df['startsec']) + [list(sub_df['endsec'])[-1]]
+        event_boundary_times = np.array(
+            list(sub_df['startsec']) + [list(sub_df['endsec'])[-1]]
+        )
+        # whether to keep the sec
+        if not to_sec:
+            event_boundary_times = event_boundary_times * 3
+        # get k-hot vector of event boundary
+        event_boundary_vector = vectorize_event_bounds(event_boundary_times)
+        return event_boundary_times, event_boundary_vector
 
     def get_subev_times(self, event_id, event_num, to_sec=False):
         '''
@@ -42,6 +51,12 @@ class EventLabel:
         # return round(t_start / FPS), round(t_end / FPS)
 
 
+def vectorize_event_bounds(event_bonds):
+    T = int(max(np.round(event_bonds))) + 1
+    event_bounds_vec = np.zeros(T)
+    for evb in event_bonds:
+        event_bounds_vec[int(np.round(evb))] = 1
+    return event_bounds_vec
 
 
 if __name__ == "__main__":
@@ -59,5 +74,8 @@ if __name__ == "__main__":
     (t_start, t_end) = evlab.get_subev_times(event_id, 1)
     print(t_start, t_end)
 
-    event_bonds = evlab.get_evbonds(event_id)
+    event_bound, event_bound_vec = evlab.get_bounds(event_id)
+
+
+
     print(event_bonds)

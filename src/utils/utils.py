@@ -3,6 +3,20 @@ import torch
 import numpy as np
 from scipy.linalg import qr
 
+ID2CHAPTER = dict({
+    '1' : 'breakfast',
+    '2' : 'exercising',
+    '3' : 'cleaning',
+    '4' : 'bathroom'
+})
+
+
+def split_video_id(video_id, to_int=False):
+    actor_id, chapter_id, run_id = video_id.split('.')
+    if to_int:
+        return int(actor_id), int(chapter_id), int(run_id)
+    return actor_id, chapter_id, run_id
+
 
 def to_pth(np_array, pth_dtype=torch.FloatTensor):
     return torch.tensor(np_array).type(pth_dtype)
@@ -23,13 +37,6 @@ def to_sqnp(torch_tensor, dtype=np.float):
 def random_ortho_mat(dim):
     Q, _ = qr(np.random.randn(dim, dim))
     return Q
-
-
-def split_video_id(video_id, to_int=False):
-    actor_id, chapter_id, run_id = video_id.split('.')
-    if to_int:
-        return int(actor_id), int(chapter_id), int(run_id)
-    return actor_id, chapter_id, run_id
 
 
 def stable_softmax(x, beta=1, subtract_max=True):
