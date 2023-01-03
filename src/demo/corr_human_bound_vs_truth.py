@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from utils import padded_pointbiserialr
+from utils import padded_corr
 from utils import EventLabel, TrainValidSplit, HumanBondaries
 sns.set(style='white', palette='colorblind', context='talk')
 
@@ -14,8 +14,8 @@ evlab = EventLabel()
 hb = HumanBondaries()
 
 # choose dataset
-event_id_list = tvs.train_ids
-# event_id_list = tvs.valid_ids
+# event_id_list = tvs.train_ids
+event_id_list = tvs.valid_ids
 
 r_crse = np.zeros(len(event_id_list),)
 r_fine = np.zeros(len(event_id_list),)
@@ -29,8 +29,8 @@ for i, event_id in enumerate(event_id_list):
     p_b_c = hb.get_bound_prob(event_id, 'coarse')
     p_b_f = hb.get_bound_prob(event_id, 'fine')
 
-    r_crse[i], p_crse[i] = padded_pointbiserialr(event_bound_vec, p_b_c)
-    r_fine[i], p_fine[i] = padded_pointbiserialr(event_bound_vec, p_b_f)
+    r_crse[i], p_crse[i] = padded_corr(event_bound_vec, p_b_c, porp = .1)
+    r_fine[i], p_fine[i] = padded_corr(event_bound_vec, p_b_f, porp = .1)
 
 
 

@@ -2,7 +2,7 @@ import os
 import pickle
 import numpy as np
 import pandas as pd
-from utils.EventLabel import EventLabel
+from utils import EventLabel
 
 evlab = EventLabel()
 human_bond_fpath = '../data/high_level_events/seg_data_analysis_clean.csv'

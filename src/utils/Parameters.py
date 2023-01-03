@@ -13,7 +13,8 @@ class Parameters():
         penalty_new_context = .1,
         stickiness = .1,
         lr = 1e-3,
-        seed = 0,
+        update_freq = 10,
+        subj_id = 0,
         dim_input = 30,
         dim_output = 30,
         verbose=True,
@@ -21,8 +22,8 @@ class Parameters():
         assert dim_hidden > 0 and dim_input > 0 and dim_output > 0
         assert dim_context >= 0
         assert 1 >= ctx_wt >= 0
-        assert penalty_new_context > 0
-        assert stickiness > 0
+        assert penalty_new_context >= 0
+        assert stickiness >= 0
         assert lr > 0
 
         # network params
@@ -36,12 +37,11 @@ class Parameters():
         self.stickiness = stickiness
         # training param
         self.lr = lr
-        # miscs
-        self.seed = seed
+        self.update_freq = update_freq
+        self.subj_id = subj_id
         # sub_dirs
-        sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}/lr-{lr}/'
-
-        self.log_dir = os.path.join(LOG_ROOT, sub_dirs)
+        sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        self.fig_dir = os.path.join(sub_dirs, 'fig')
         self.gen_log_dirs(verbose=verbose)
 
     def gen_log_dirs(self, verbose=False):

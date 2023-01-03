@@ -9,27 +9,22 @@ import torch.nn as nn
 import numpy as np
 from utils import to_pth, to_np
 
-class CGRU(nn.Module):
+class CGRU_v2(nn.Module):
 
     def __init__(
             self, input_dim, hidden_dim, output_dim, context_dim, ctx_wt=0, bias=True,
             sigmoid_output=False, dropout_rate=0, zero_init_state=True,
         ):
-        super(CGRU, self).__init__()
+        super(CGRU_v2, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
+        self.context_dim = context_dim
         self.bias = bias
         # weights
-        self.i2h = nn.Linear(input_dim, 3 * hidden_dim, bias=bias)
-        self.h2h = nn.Linear(hidden_dim, 3 * hidden_dim, bias=bias)
+        self.i2h = nn.Linear(input_dim+context_dim, 3 * hidden_dim, bias=bias)
+        self.h2h = nn.Linear(hidden_dim+context_dim, 3 * hidden_dim, bias=bias)
         self.h2o = nn.Linear(hidden_dim, output_dim, bias=bias)
-        # context layer
-        assert context_dim > 0
-        self.ctx_wt = ctx_wt
-        self.context_dim = context_dim
-        self.ci2h = nn.Linear(context_dim, 3 * hidden_dim, bias=bias)
-        self.ch2h = nn.Linear(context_dim, 3 * hidden_dim, bias=bias)
         # set dropout rate
         self.dropout_rate = dropout_rate
         if self.dropout_rate > 0:
@@ -48,33 +43,15 @@ class CGRU(nn.Module):
         # std = 1.0 / self.hidden_dim
         for w in self.parameters():
             w.data.uniform_(-std, std)
-        # for layer in range(num_layers):
-        #     for weight in rnn._all_weights[layer]:
-        #         if "weight" in weight:
-        #             nn.init.xavier_uniform_(getattr(rnn,weight))
-        #         if "bias" in weight:
-        #             nn.init.uniform_(getattr(rnn,weight))
 
-        # for name, wts in self.named_parameters():
-        #     if 'weight' in name:
-        #         torch.nn.init.xavier_uniform_(wts)
-        #     elif 'bias' in name:
-        #         torch.nn.init.uniform_(wts, 0)
-
-
-    # def reset_parameters(self):
-    #     for name, wts in self.named_parameters():
-    #         if 'weight' in name:
-    #             torch.nn.init.orthogonal_(wts)
-    #         elif 'bias' in name:
-    #             torch.nn.init.constant_(wts, 0)
 
     def forward(self, x, hidden, context_t=None):
+        hidden = hidden.view(-1)
         # combine contextual input and x / h_prev
-        # gate_x = torch.cat([self.i2h(x), self.ci2h(context_t)])
-        # gate_h = torch.cat([self.h2h(x), self.ch2h(context_t)])
-        gate_x = self.i2h(x) * (1 - self.ctx_wt) + self.ci2h(context_t) * self.ctx_wt
-        gate_h = self.h2h(hidden) * (1 - self.ctx_wt) + self.ch2h(context_t) * self.ctx_wt
+        xc = torch.cat([x, context_t])
+        hc = torch.cat([hidden, context_t])
+        gate_x = self.i2h(xc)
+        gate_h = self.h2h(hc)
 
         # compute the gates
         gate_x = gate_x.squeeze()
@@ -102,15 +79,15 @@ class CGRU(nn.Module):
             [yhat_t, h_t], _ = self.forward(x_t, h, context_t=context_t)
         return yhat_t
 
-    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None):
+    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, verbose=True):
         # loop over all ctx ...
-        # ... AND the zero context at index 0
         n_contexts = len(contexts)
         pe = torch.zeros(n_contexts, )
         [None] * (n_contexts)
         for k in range(n_contexts):
             yhat_k = self.forward_nograd(x_t, h_t, to_pth(contexts[k]))
             pe[k] = self.criterion(y_t, torch.squeeze(yhat_k))
+
         # decide if whether to restart the ongoing context
         if prev_context_id is not None:
             yhat_prev_restart = self.forward_nograd(
@@ -119,7 +96,8 @@ class CGRU(nn.Module):
             pe_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
             if pe_prev_restart < pe[prev_context_id]:
                 pe[prev_context_id] = pe_prev_restart
-                print('Restart the ongoing context')
+                if verbose:
+                    print('Restart the ongoing context')
         return to_np(pe)
 
 
