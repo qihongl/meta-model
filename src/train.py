@@ -21,33 +21,47 @@ from scipy.stats import pointbiserialr, pearsonr
 sns.set(style='white', palette='colorblind', context='talk')
 
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--subj_id', default=99, type=int)
-# parser.add_argument('--lr', default=1e-3, type=float)
-# parser.add_argument('--update_freq', default=10, type=int)
-# parser.add_argument('--dim_hidden', default=16, type=int)
-# parser.add_argument('--dim_context', default=256, type=int)
-# parser.add_argument('--ctx_wt', default=.5, type=float)
-# parser.add_argument('--penalty_new_context', default=.5, type=float)
-# parser.add_argument('--stickiness', default=.5, type=float)
-
-
-subj_id = 0
-np.random.seed(subj_id)
-torch.manual_seed(subj_id)
+parser = argparse.ArgumentParser()
+parser.add_argument('--subj_id', default=99, type=int)
+parser.add_argument('--lr', default=1e-3, type=float)
+parser.add_argument('--update_freq', default=10, type=int)
+parser.add_argument('--dim_hidden', default=16, type=int)
+parser.add_argument('--dim_context', default=256, type=int)
+parser.add_argument('--ctx_wt', default=.5, type=float)
+parser.add_argument('--penalty_new_context', default=.5, type=float)
+parser.add_argument('--stickiness', default=.5, type=float)
+parser.add_argument('--log_root', default='../log', type=str)
+args = parser.parse_args()
+print(args)
 
 '''params for the model'''
-# training param
-lr = 1e-3
-update_freq = 10
-# model param
-dim_hidden = 16
-dim_context = 256
-ctx_wt = .5
-# ctx_wt = 0
-penalty_new_context = .5
-stickiness = .5
 
+# training param
+subj_id = args.subj_id
+lr = args.lr
+update_freq = args.update_freq
+dim_hidden = args.dim_hidden
+dim_context = args.dim_context
+ctx_wt = args.ctx_wt
+penalty_new_context = args.penalty_new_context
+stickiness = args.stickiness
+log_root = args.log_root
+
+# # training param
+# subj_id = 0
+# lr = 1e-3
+# update_freq = 10
+# # model param
+# dim_hidden = 16
+# dim_context = 256
+# ctx_wt = .5
+# # ctx_wt = 0
+# penalty_new_context = .5
+# stickiness = .5
+
+# set seed
+np.random.seed(subj_id)
+torch.manual_seed(subj_id)
 # init util objects
 dl = DataLoader()
 tvs = TrainValidSplit()
@@ -56,7 +70,7 @@ hb = HumanBondaries()
 p = Parameters(
     dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
     penalty_new_context = penalty_new_context, stickiness = stickiness, lr = lr,
-    update_freq = update_freq, subj_id = subj_id,
+    update_freq = update_freq, subj_id = subj_id, log_root=log_root,
 )
 # p.log_dir
 # init model
@@ -91,7 +105,8 @@ def run_model(event_id_list, save_weights=True, learning=True, save_freq=10):
         h_t = agent.get_init_states()
         for t in tqdm(range(T)):
             # context - full inference
-            pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
+            # pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
+            pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context)
             pe[0] = pe[0] + p.penalty_new_context
             pe[sc.prev_cluster_id] = pe[sc.prev_cluster_id] - p.stickiness
             log_cid_i[t] = sc.assign_context(-pe, verbose=1)

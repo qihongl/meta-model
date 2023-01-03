@@ -1,8 +1,5 @@
 import os
 
-LOG_ROOT = '../log'
-
-
 class Parameters():
 
     def __init__(
@@ -18,6 +15,8 @@ class Parameters():
         dim_input = 30,
         dim_output = 30,
         verbose=True,
+        log_root = '../log',
+        dont_make_dir=False,
     ):
         assert dim_hidden > 0 and dim_input > 0 and dim_output > 0
         assert dim_context >= 0
@@ -40,8 +39,10 @@ class Parameters():
         self.update_freq = update_freq
         self.subj_id = subj_id
         # sub_dirs
+        self.log_root = log_root
         sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
-        self.fig_dir = os.path.join(sub_dirs, 'fig')
+        self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
+        self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
         self.gen_log_dirs(verbose=verbose)
 
     def gen_log_dirs(self, verbose=False):
@@ -76,6 +77,7 @@ if __name__ == "__main__":
         penalty_new_context = penalty_new_context,
         stickiness = stickiness,
         lr = lr,
+        dont_make_dir=True # testing
     )
 
     print(p.log_dir)
