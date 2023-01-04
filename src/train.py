@@ -20,13 +20,16 @@ from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBond
 from scipy.stats import pointbiserialr, pearsonr
 sns.set(style='white', palette='colorblind', context='talk')
 
-
+'''e.g.
+python train.py  --subj_id 99 --lr 1e-3 --update_freq 10 --dim_hidden 16 --dim_context 256 --ctx_wt .5 --penalty_new_context .5 --stickiness .5
+sbatch train.sh 99 1e-3 10 16 256 .5 .5 .5
+'''
 parser = argparse.ArgumentParser()
 parser.add_argument('--subj_id', default=99, type=int)
 parser.add_argument('--lr', default=1e-3, type=float)
-parser.add_argument('--update_freq', default=10, type=int)
+parser.add_argument('--update_freq', default=100, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
-parser.add_argument('--dim_context', default=256, type=int)
+parser.add_argument('--dim_context', default=32, type=int)
 parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--penalty_new_context', default=.5, type=float)
 parser.add_argument('--stickiness', default=.5, type=float)
@@ -72,7 +75,6 @@ p = Parameters(
     penalty_new_context = penalty_new_context, stickiness = stickiness, lr = lr,
     update_freq = update_freq, subj_id = subj_id, log_root=log_root,
 )
-# p.log_dir
 # init model
 agent = Agent(
     p.dim_input, p.dim_hidden, p.dim_output,
@@ -80,19 +82,20 @@ agent = Agent(
 )
 optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 # context management
-sc = SimpleContext(p.dim_context)
-c_id, c_vec = sc.reset_context()
+sc = SimpleContext(p.dim_context, penalty_new_context, stickiness)
+c_id, c_vec = sc.init_context()
 
 '''train the model'''
 
-def run_model(event_id_list, save_weights=True, learning=True, save_freq=10):
+def run_model(event_id_list, p, save_weights=True, learning=True, save_freq=10):
+    # prealooc
     loss_by_events = [[] for _ in range(len(event_id_list))]
     log_cid = [[] for _ in range(len(event_id_list))]
 
     for i, event_id in enumerate(event_id_list):
         # save data for every other k epochs
         if save_weights and i % save_freq == 0:
-            save_ckpt(i, p.log_dir, agent, optimizer, verbose=True)
+            save_ckpt(i, p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
         print(f'Learning event {i} / {len(event_id_list)} - {event_id}')
         t_start = time.time()
         # get data
@@ -109,8 +112,7 @@ def run_model(event_id_list, save_weights=True, learning=True, save_freq=10):
             pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context)
             pe[0] = pe[0] + p.penalty_new_context
             pe[sc.prev_cluster_id] = pe[sc.prev_cluster_id] - p.stickiness
-            log_cid_i[t] = sc.assign_context(-pe, verbose=1)
-            c_vec = sc.context[int(log_cid_i[t])]
+            log_cid_i[t], c_vec = sc.assign_context(-pe, get_context_vector=True, verbose=1)
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
@@ -126,14 +128,14 @@ def run_model(event_id_list, save_weights=True, learning=True, save_freq=10):
         print('Time elapsed = %.2f sec' % (time.time() - t_start))
     # save the final weights
     if save_weights:
-        save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, verbose=True)
+        save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
     print('done')
     return log_cid, loss_by_events
 
 
 '''evaluate loss on the validation set'''
-log_cid_tr, loss_by_events_tr = run_model(tvs.train_ids, save_weights=True, learning=True)
-log_cid, loss_by_events = run_model(tvs.valid_ids, save_weights=False, learning=False)
+log_cid_tr, loss_by_events_tr = run_model(tvs.train_ids, p=p, save_weights=True, learning=True)
+log_cid, loss_by_events = run_model(tvs.valid_ids, p=p, save_weights=False, learning=False)
 
 
 '''plot the data '''
@@ -203,10 +205,12 @@ r_fine = np.zeros(len(log_cid),)
 p_crse = np.zeros(len(log_cid),)
 p_fine = np.zeros(len(log_cid),)
 for i in range(tvs.n_valid_files):
+
+
     model_loss_bound_vec = loss_to_bound_vec(loss_by_events[i])
     model_ctx_bound_vec = context_to_bound_vec(log_cid[i])
-    p_b_c = hb.get_bound_prob(event_id, 'coarse')
-    p_b_f = hb.get_bound_prob(event_id, 'fine')
+    p_b_c = hb.get_bound_prob(tvs.valid_ids[i], 'coarse')
+    p_b_f = hb.get_bound_prob(tvs.valid_ids[i], 'fine')
     # r_crse[i], p_crse[i] = padded_corr(to_np(torch.stack(loss_by_events[i])), p_b_c, corr_f=pearsonr, porp=.1)
     # r_fine[i], p_fine[i] = padded_corr(to_np(torch.stack(loss_by_events[i])), p_b_f, corr_f=pearsonr, porp=.1)
     # r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c)

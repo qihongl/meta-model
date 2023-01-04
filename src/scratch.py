@@ -1,7 +1,7 @@
 import os
 import pickle
 import pandas as pd
-from utils.io import pickle_load, list_fnames
+from utils.io import pickle_load, list_fnames, pickle_save
 # from sklearn.decomposition import PCA
 
 DATA_ROOT = '../data'
@@ -76,3 +76,13 @@ object labels / object tracking
 
 are all videos in Full_SEM?
 '''
+
+
+
+import pickle
+import numpy as np
+a = dict({'hello': 'world', 'a': [np.zeros(3,), np.ones(4)]})
+
+pickle_save(a, 'filename.pickle')
+b = pickle_load('filename.pickle')
+print(a == b)

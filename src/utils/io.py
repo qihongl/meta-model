@@ -2,80 +2,60 @@ import os
 import glob
 import pickle
 import torch
+# import numpy as np
 
 CKPT_FTEMP = 'ckpt-ep-%d.pt'
+SC_FTEMP = 'sc-ep-%d.pkl'
 
 def pickle_load(data_path):
-    df = pickle.load(open(data_path, 'rb'))
-    return df
+    loaded_obj = pickle.load(open(data_path, 'rb'))
+    return loaded_obj
 
-
-def pickle_save_dict(input_dict, save_path):
-    """Save the dictionary
-
-    Parameters
-    ----------
-    input_dict : type
-        Description of parameter `input_dict`.
-    save_path : type
-        Description of parameter `save_path`.
-
-    """
+def pickle_save(input_obj, save_path):
     with open(save_path, 'wb') as handle:
-        pickle.dump(input_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(input_obj, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def pickle_load_dict(fpath):
-    """load the dict
-
-    Parameters
-    ----------
-    fpath : type
-        Description of parameter `fpath`.
-
-    Returns
-    -------
-    type
-        Description of returned object.
-
-    """
-    return pickle.load(open(fpath, "rb"))
-
-
-
-def save_ckpt(cur_epoch, log_path, agent, optimizer, verbose=False):
+def save_ckpt(cur_epoch, log_path, agent, optimizer, context_module_dict, verbose=False):
     # compute fname
     ckpt_fname = CKPT_FTEMP % cur_epoch
-    log_fpath = os.path.join(log_path, ckpt_fname)
-    torch.save({
-        'network_state_dict': agent.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-    }, log_fpath)
+    sc_fname = SC_FTEMP % cur_epoch
+    torch.save(
+        {
+            'network_state_dict': agent.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+        },
+        os.path.join(log_path, ckpt_fname)
+    )
+    pickle_save(context_module_dict, os.path.join(log_path, sc_fname))
     if verbose:
         print(f'model saved at epoch {cur_epoch}')
 
 
-def load_ckpt(epoch_load, log_path, agent, optimizer=None):
+def load_ckpt(epoch_load, log_path, agent, optimizer, verbose=True):
     # compute fname
     ckpt_fname = CKPT_FTEMP % epoch_load
-    log_fpath = os.path.join(log_path, ckpt_fname)
-    if os.path.exists(log_fpath):
+    sc_fname = SC_FTEMP % epoch_load
+    ckpt_fpath = os.path.join(log_path, ckpt_fname)
+    sc_fpath = os.path.join(log_path, sc_fname)
+    if os.path.exists(ckpt_fpath) and os.path.exists(sc_fpath):
         # load the ckpt back
-        checkpoint = torch.load(log_fpath)
+        checkpoint = torch.load(ckpt_fpath)
         # unpack results
         agent.load_state_dict(checkpoint['network_state_dict'])
-        if optimizer is None:
-            optimizer = torch.optim.Adam(agent.parameters())
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         agent.train()
+        context_module_dict = pickle_load(sc_fpath)
         # msg
-        print(f'network weights - epoch {epoch_load} loaded')
-        return agent, optimizer
+        if verbose:
+            print(f'{ckpt_fname} loaded')
+            print(f'{sc_fname} loaded')
+        return agent, optimizer, context_module_dict
     print('ERROR: ckpt DNE')
-    return None, None
+    return None, None, None
 
 
-def list_fnames(data_dir, fpattern):
+def list_fnames(data_dir, fpattern, verbose=False):
     '''
     list all fnames/fpaths with a particular fpattern (e.g. *pca.pkl)
     '''
@@ -85,4 +65,10 @@ def list_fnames(data_dir, fpattern):
     for i, fpath in enumerate(fpaths):
         # get file info
         fnames[i] = os.path.basename(fpath)
+    if verbose:
+        print(fnames)
     return fpaths, fnames
+
+
+# if __name__ == "__main__":
+#     # training param

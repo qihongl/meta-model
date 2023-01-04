@@ -9,9 +9,9 @@ class SimpleContext():
         self.context_dim = context_dim
         self.pseudo_count = pseudo_count
         self.stickiness = stickiness
-        self.reset_context()
+        self.init_context()
 
-    def reset_context(self):
+    def init_context(self):
         self.n_context = 0
         self.prev_cluster_id = None
         # self.ortho_mat = random_ortho_mat(self.context_dim)

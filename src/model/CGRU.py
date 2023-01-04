@@ -102,7 +102,7 @@ class CGRU(nn.Module):
             [yhat_t, h_t], _ = self.forward(x_t, h, context_t=context_t)
         return yhat_t
 
-    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None):
+    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, verbose=True):
         # loop over all ctx ...
         # ... AND the zero context at index 0
         n_contexts = len(contexts)
@@ -119,7 +119,8 @@ class CGRU(nn.Module):
             pe_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
             if pe_prev_restart < pe[prev_context_id]:
                 pe[prev_context_id] = pe_prev_restart
-                print('Restart the ongoing context')
+                if verbose:
+                    print('Restart the ongoing context')
         return to_np(pe)
 
 

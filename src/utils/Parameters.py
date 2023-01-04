@@ -43,16 +43,13 @@ class Parameters():
         sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
+        print(self.log_dir)
+        print(self.fig_dir)
         self.gen_log_dirs(verbose=verbose)
 
     def gen_log_dirs(self, verbose=False):
         mkdir_ifdne(self.log_dir, verbose)
-        return self.log_dir
-
-    def log_dir_exists(self):
-        if os.path.exists(self.log_dir):
-            return True
-        return False
+        mkdir_ifdne(self.fig_dir, verbose)
 
 
 def mkdir_ifdne(dir_name, verbose=False):

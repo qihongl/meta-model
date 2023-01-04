@@ -22,8 +22,37 @@ def circular_shift(v, porp = .2, step_size=1):
     return np.array([np.concatenate([v[-shift:], v[:-shift]]) for shift in shifts])
 
 
-def padded_corr(event_bound_vec, p_human_bound, shift=True, corr_f=pointbiserialr, porp=.2, step_size=1):
-    assert corr_f in [pointbiserialr, pearsonr]
+
+def get_point_biserial(boundaries_binned, binned_comp, scale=True) -> float:
+    M_1 = np.mean(binned_comp[boundaries_binned != 0])
+    M_0 = np.mean(binned_comp[boundaries_binned == 0])
+
+    n_1 = np.sum(boundaries_binned != 0)
+    n_0 = np.sum(boundaries_binned == 0)
+    n = n_1 + n_0
+
+    s = np.std(binned_comp)
+    r_pb = (M_1 - M_0) / s * np.sqrt(n_1 * n_0 / (float(n) ** 2))
+    if scale:
+        num_boundaries = boundaries_binned.astype(bool).sum()
+        fake_upper = np.zeros(np.shape(binned_comp), dtype=bool)
+        fake_upper[np.argsort(binned_comp)[-num_boundaries:]] = True
+        M_1 = np.mean(binned_comp[fake_upper != 0])
+        M_0 = np.mean(binned_comp[fake_upper == 0])
+        r_upper = (M_1 - M_0) / s * np.sqrt(n_1 * n_0 / (float(n) ** 2))
+
+        fake_lower = np.zeros(np.shape(binned_comp), dtype=bool)
+        fake_lower[np.argsort(binned_comp)[:num_boundaries]] = True
+        M_1 = np.mean(binned_comp[fake_lower != 0])
+        M_0 = np.mean(binned_comp[fake_lower == 0])
+        r_lower = (M_1 - M_0) / s * np.sqrt(n_1 * n_0 / (float(n) ** 2))
+        return (r_pb - r_lower) / (r_upper - r_lower), None
+    else:
+        return r_pb, None 
+
+
+def padded_corr(event_bound_vec, p_human_bound, shift=True, corr_f=get_point_biserial, porp=.2, step_size=1):
+    assert corr_f in [pointbiserialr, pearsonr, get_point_biserial]
     # compute the padding size
     event_bound_vec, p_human_bound = pad_vector_to_same_length(
         event_bound_vec, p_human_bound
@@ -61,3 +90,11 @@ def compute_stats(matrix, axis=0, n_se=2, omitnan=False):
         mu_ = np.mean(matrix, axis=axis)
         er_ = sem(matrix, axis=axis) * n_se
     return mu_, er_
+
+
+
+if __name__ == "__main__":
+    x = np.array([0,1,0])
+    y = np.array([0.1,.8,.1])
+    r = get_point_biserial(x, y, scale=True)
+    print(r)
