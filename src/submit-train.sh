@@ -14,7 +14,7 @@ do
                do
                    for stickiness in .1 .5 1
                    do
-                       sbatch train.sh
+                       sbatch train.sh \ 
                            ${subj_id} \
                            ${lr} \
                            ${update_freq} \

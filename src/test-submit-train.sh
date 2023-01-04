@@ -9,7 +9,7 @@ ctx_wt=.5
 penalty_new_context=.5
 stickiness=.5
 
-sbatch train.sh
+sbatch train.sh \
     ${subj_id} \
     ${lr} \
     ${update_freq} \
