@@ -17,14 +17,14 @@ do
                    for stickiness in .1 .5 1
                    do
                        sbatch train.sh
-                           --${subj_id} \
-                           --${lr} \
-                           --${update_freq} \
-                           --${dim_hidden} \
-                           --${dim_context} \
-                           --${ctx_wt} \
-                           --${penalty_new_context} \
-                           --${stickiness}
+                           ${subj_id} \
+                           ${lr} \
+                           ${update_freq} \
+                           ${dim_hidden} \
+                           ${dim_context} \
+                           ${ctx_wt} \
+                           ${penalty_new_context} \
+                           ${stickiness}
                    done
                done
            done
