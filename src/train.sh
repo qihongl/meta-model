@@ -10,7 +10,7 @@ LOGROOT=/tigress/qlu/logs/meta-model/log
 
 echo $(date)
 
-srun python -u train-sl.py \
+srun python -u train.py \
     --subj_id ${1} \
     --lr ${2} \
     --update_freq ${3} \
@@ -22,5 +22,3 @@ srun python -u train-sl.py \
     --log_root $LOGROOT
 
 echo $(date)
-
-
