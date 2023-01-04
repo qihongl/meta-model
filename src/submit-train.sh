@@ -1,8 +1,6 @@
 #!/bin/bash
-
 dim_hidden=16
 ctx_wt=.5
-
 
 for subj_id in {0..2}
 do

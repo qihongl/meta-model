@@ -21,7 +21,7 @@ from scipy.stats import pointbiserialr, pearsonr
 sns.set(style='white', palette='colorblind', context='talk')
 
 '''e.g.
-python train.py  --subj_id 99 --lr 1e-3 --update_freq 10 --dim_hidden 16 --dim_context 256 --ctx_wt .5 --penalty_new_context .5 --stickiness .5
+python train.py --subj_id 99 --lr 1e-3 --update_freq 10 --dim_hidden 16 --dim_context 256 --ctx_wt .5 --penalty_new_context .5 --stickiness .5
 sbatch train.sh 99 1e-3 10 16 256 .5 .5 .5
 '''
 parser = argparse.ArgumentParser()
