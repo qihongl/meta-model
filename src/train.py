@@ -183,10 +183,8 @@ for i in range(tvs.n_valid_files):
     model_ctx_bound_vec = context_to_bound_vec(log_cid[i])
     p_b_c = hb.get_bound_prob(tvs.valid_ids[i], 'coarse')
     p_b_f = hb.get_bound_prob(tvs.valid_ids[i], 'fine')
-    # r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, porp=.1)
-    # r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, porp=.1)
-    r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, shift=False)
-    r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, shift=False)
+    r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, porp=.1)
+    r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, porp=.1)
 
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
