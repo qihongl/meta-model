@@ -33,12 +33,7 @@ class SimpleContext():
 
     def init_context(self):
         self.n_context = 0
-        # self.ortho_mat = random_ortho_mat(self.context_dim)
-        # self.context = [self.ortho_mat[0]]
-        # self.context = [np.mean(self.ortho_mat,axis=0)]
         self.context = [self.random_vector()]
-        # self.context = [self.zero_vector()]
-        # add a new context
         self.prev_cluster_id = 1
         c_id, c_vec = self.add_new_context()
         return c_id, c_vec
@@ -66,14 +61,25 @@ class SimpleContext():
         self.n_context += 1
         return self.n_context, new_context
 
-    def assign_context(self, posterior, get_context_vector=False, verbose=1):
+    def compute_posterior(self, likelihood, verbose=False):
+        sticky_uniform_vec = np.ones(self.n_context+1)
+        if self.prev_cluster_id is not None:
+            sticky_uniform_vec[self.prev_cluster_id] += self.stickiness
+        prior = sticky_uniform_vec / np.sum(sticky_uniform_vec)
+        if verbose:
+            print('prior = ', prior)
+        return likelihood * prior
+
+    def assign_context(self, likelihood, get_context_vector=False, verbose=1):
+        assert np.all(likelihood) > 0
+        posterior = self.compute_posterior(likelihood)
         ctx_id = np.argmax(posterior)
-        # n_context_out_of_bound = len(self.context) >= self.context_dim
         # get the context vector
         if ctx_id == 0:
             ctx_id, ctx_vec = self.add_new_context()
             if verbose >= 1:
-                print(f'adding the {self.n_context}-th context! \nposterior: {posterior}')
+                print(f'adding the {self.n_context}-th context!')
+                print(f'lik: {likelihood}\nposterior: {posterior}')
         else:
             ctx_vec = self.context[ctx_id]
             if verbose >= 2:

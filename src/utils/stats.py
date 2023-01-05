@@ -22,8 +22,11 @@ def circular_shift(v, porp = .2, step_size=1):
     return np.array([np.concatenate([v[-shift:], v[:-shift]]) for shift in shifts])
 
 
-
 def get_point_biserial(boundaries_binned, binned_comp, scale=True) -> float:
+    '''
+    from:
+    Bezdek, M., Nguyen, T., Gershman, S. J., Bobick, A., Braver, T. S., & Zacks, J. M. (2022)
+    '''
     M_1 = np.mean(binned_comp[boundaries_binned != 0])
     M_0 = np.mean(binned_comp[boundaries_binned == 0])
 
@@ -48,7 +51,7 @@ def get_point_biserial(boundaries_binned, binned_comp, scale=True) -> float:
         r_lower = (M_1 - M_0) / s * np.sqrt(n_1 * n_0 / (float(n) ** 2))
         return (r_pb - r_lower) / (r_upper - r_lower), None
     else:
-        return r_pb, None 
+        return r_pb, None
 
 
 def padded_corr(event_bound_vec, p_human_bound, shift=True, corr_f=get_point_biserial, porp=.2, step_size=1):
@@ -97,4 +100,6 @@ if __name__ == "__main__":
     x = np.array([0,1,0])
     y = np.array([0.1,.8,.1])
     r = get_point_biserial(x, y, scale=True)
-    print(r)
+
+    # z = np.array([-1, -2, -1])
+    # print(stable_softmax(z, beta=1/3))

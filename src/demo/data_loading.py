@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from utils import ID2CHAPTER, split_video_id, padded_pointbiserialr
+from utils import ID2CHAPTER, split_video_id, padded_corr
 from utils import EventLabel, TrainValidSplit, DataLoader, HumanBondaries
 sns.set(style='white', palette='colorblind', context='talk')
 
@@ -16,25 +16,26 @@ hb = HumanBondaries()
 
 # choose dataset
 event_id_list = tvs.train_ids
+t_f1 = np.zeros(len(event_id_list))
 # loop over events
 for i, event_id in enumerate(event_id_list):
-    print(f'Event {i} / {tvs.n_train_files} - {event_id}')
+    print(f'Event {i} / {len(event_id_list)} - {event_id}')
     if i > 5: break
 
     p_b_c = hb.get_bound_prob(event_id, 'coarse')
     p_b_f = hb.get_bound_prob(event_id, 'fine')
 
     # load data
-    X = dl.get_data(event_id)
+    X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
     # get basic info
     actor_id, chapter_id, run_id = split_video_id(event_id)
 
     T = len(X)-1
     # get ground truth boundaries
-    event_bound_times, event_bound_vec = evlab.get_bounds(tvs.train_ids[i])
+    event_bound_times, event_bound_vec = evlab.get_bounds(event_id_list[i])
 
-    c_r, c_p = padded_pointbiserialr(event_bound_vec, p_b_c)
-    f_r, f_p = padded_pointbiserialr(event_bound_vec, p_b_f)
+    c_r, c_p = padded_corr(event_bound_vec, p_b_c, shift=False)
+    f_r, f_p = padded_corr(event_bound_vec, p_b_f, shift=False)
 
     '''plot this event'''
     alpha = .5

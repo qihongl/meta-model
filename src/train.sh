@@ -19,6 +19,7 @@ srun python -u train.py \
     --ctx_wt ${6} \
     --penalty_new_context ${7} \
     --stickiness ${8} \
+    --lik_softmax_beta ${9} \ 
     --log_root $LOGROOT
 
 echo $(date)

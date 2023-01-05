@@ -79,7 +79,7 @@ class CGRU_v2(nn.Module):
             [yhat_t, h_t], _ = self.forward(x_t, h, context_t=context_t)
         return yhat_t
 
-    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, verbose=True):
+    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, softmax_beta=None, verbose=True):
         # loop over all ctx ...
         n_contexts = len(contexts)
         pe = torch.zeros(n_contexts, )
@@ -98,6 +98,9 @@ class CGRU_v2(nn.Module):
                 pe[prev_context_id] = pe_prev_restart
                 if verbose:
                     print('Restart the ongoing context')
+
+        if softmax_beta is not None:
+            return stable_softmax(to_np(pe), softmax_beta)
         return to_np(pe)
 
 
@@ -142,3 +145,13 @@ def get_weights(layer_name, model, to_np=True):
             w_ = param.data.numpy() if to_np else param.data
             weights[name] = w_
     return weights
+
+
+
+def stable_softmax(x, beta=1/3, subtract_max=True):
+    assert beta > 0
+    if subtract_max:
+        x -= max(x)
+    # apply temperture
+    z = x / beta
+    return np.exp(z) / (np.sum(np.exp(z)) + 1e-010)

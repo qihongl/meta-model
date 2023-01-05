@@ -31,8 +31,9 @@ parser.add_argument('--update_freq', default=100, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
 parser.add_argument('--dim_context', default=32, type=int)
 parser.add_argument('--ctx_wt', default=.5, type=float)
-parser.add_argument('--penalty_new_context', default=.5, type=float)
-parser.add_argument('--stickiness', default=.5, type=float)
+parser.add_argument('--penalty_new_context', default=0, type=float)
+parser.add_argument('--stickiness', default=2, type=float)
+parser.add_argument('--lik_softmax_beta', default=1/3, type=float)
 parser.add_argument('--log_root', default='../log', type=str)
 args = parser.parse_args()
 print(args)
@@ -48,19 +49,22 @@ dim_context = args.dim_context
 ctx_wt = args.ctx_wt
 penalty_new_context = args.penalty_new_context
 stickiness = args.stickiness
+lik_softmax_beta = args.lik_softmax_beta
 log_root = args.log_root
 
 # # training param
 # subj_id = 0
 # lr = 1e-3
-# update_freq = 10
+# update_freq = 20
 # # model param
 # dim_hidden = 16
-# dim_context = 256
+# dim_context = 128
 # ctx_wt = .5
 # # ctx_wt = 0
-# penalty_new_context = .5
-# stickiness = .5
+# penalty_new_context = 0
+# stickiness = 2
+# lik_softmax_beta = 1/3
+# log_root = '../log'
 
 # set seed
 np.random.seed(subj_id)
@@ -73,7 +77,7 @@ hb = HumanBondaries()
 p = Parameters(
     dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
     penalty_new_context = penalty_new_context, stickiness = stickiness, lr = lr,
-    update_freq = update_freq, subj_id = subj_id, log_root=log_root,
+    update_freq = update_freq, subj_id = subj_id, lik_softmax_beta=lik_softmax_beta, log_root=log_root,
 )
 # init model
 agent = Agent(
@@ -108,11 +112,8 @@ def run_model(event_id_list, p, save_weights=True, learning=True, save_freq=10):
         h_t = agent.get_init_states()
         for t in tqdm(range(T)):
             # context - full inference
-            # pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-            pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context)
-            pe[0] = pe[0] + p.penalty_new_context
-            pe[sc.prev_cluster_id] = pe[sc.prev_cluster_id] - p.stickiness
-            log_cid_i[t], c_vec = sc.assign_context(-pe, get_context_vector=True, verbose=1)
+            lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, softmax_beta=p.lik_softmax_beta)
+            log_cid_i[t], c_vec = sc.assign_context(lik, get_context_vector=True, verbose=1)
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
@@ -170,34 +171,6 @@ fig_path = os.path.join(p.fig_dir, f'final-n-ctx-over-training.png')
 f.savefig(fig_path, dpi=100)
 
 
-# for i, loss_by_events_i in enumerate(loss_by_events):
-#     if i > 3: break
-#     f, ax = plt.subplots(1,1, figsize=(10,3))
-#     ax.plot(loss_by_events_i)
-#     ax.set_title(tvs.valid_ids[i])
-#     ax.set_xlabel('time')
-#     ax.set_ylabel('loss')
-#     event_bound_times, event_bound_vec = evlab.get_bounds(tvs.valid_ids[i])
-#     for eb in event_bound_times:
-#         ax.axvline(eb, ls='--', color='grey')
-#     sns.despine()
-#
-#
-# for i, log_cid_i in enumerate(log_cid):
-#     if i > 3: break
-#     event_bound_times, event_bound_vec = evlab.get_bounds(tvs.valid_ids[i])
-#     f, ax = plt.subplots(1,1, figsize=(10,3))
-#     ax.plot(log_cid_i)
-#     # ax.set_title('%.3f' % torch.stack(loss_mu_by_events).mean())
-#     ax.set_title(tvs.valid_ids[i])
-#     ax.set_xlabel('time')
-#     ax.set_ylabel('Context')
-#
-#     for eb in event_bound_times:
-#         ax.axvline(eb, ls='--', color='grey')
-#     sns.despine()
-
-
 '''correlation with human boundaries'''
 
 r_crse = np.zeros(len(log_cid),)
@@ -206,19 +179,12 @@ p_crse = np.zeros(len(log_cid),)
 p_fine = np.zeros(len(log_cid),)
 for i in range(tvs.n_valid_files):
 
-
     model_loss_bound_vec = loss_to_bound_vec(loss_by_events[i])
     model_ctx_bound_vec = context_to_bound_vec(log_cid[i])
     p_b_c = hb.get_bound_prob(tvs.valid_ids[i], 'coarse')
     p_b_f = hb.get_bound_prob(tvs.valid_ids[i], 'fine')
-    # r_crse[i], p_crse[i] = padded_corr(to_np(torch.stack(loss_by_events[i])), p_b_c, corr_f=pearsonr, porp=.1)
-    # r_fine[i], p_fine[i] = padded_corr(to_np(torch.stack(loss_by_events[i])), p_b_f, corr_f=pearsonr, porp=.1)
-    # r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c)
-    # r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f)
     r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, porp=.1)
     r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, porp=.1)
-    # r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, shift=False)
-    # r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, shift=False)
 
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
@@ -235,21 +201,4 @@ axes[1].set_ylabel('Fine')
 f.tight_layout()
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'final-r-mode-vs-human-bounds.png')
-f.savefig(fig_path, dpi=100)
-
-
-f, axes = plt.subplots(2, 1, figsize=(5,7))
-sns.histplot(p_crse, ax=axes[0])
-sns.histplot(p_fine, ax=axes[1])
-for ax in axes:
-    ax.axvline(0.05, ls='--', c='grey', label='0.05', zorder=-1)
-    ax.legend()
-axes[0].set_title(f'mean p = %.3f' % (p_crse.mean()))
-axes[1].set_title(f'mean p = %.3f' % (p_fine.mean()))
-axes[1].set_xlabel('p value')
-axes[0].set_ylabel('Freq')
-axes[1].set_ylabel('Freq')
-f.tight_layout()
-sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-p-mode-vs-human-bounds.png')
 f.savefig(fig_path, dpi=100)

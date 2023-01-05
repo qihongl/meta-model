@@ -50,6 +50,10 @@ class EventLabel:
         return t_start, t_end
         # return round(t_start / FPS), round(t_end / FPS)
 
+    def get_start_end_times(self, event_id):
+        event_bound, _ = self.get_bounds(event_id)
+        return event_bound[0], event_bound[-1]
+
 
 def vectorize_event_bounds(event_bonds):
     T = int(max(np.round(event_bonds))) + 1
@@ -76,4 +80,4 @@ if __name__ == "__main__":
 
     event_bound, event_bound_vec = evlab.get_bounds(event_id)
 
-    print(event_bonds)
+    print(event_bound)

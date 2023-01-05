@@ -7,8 +7,9 @@ class Parameters():
         dim_hidden = 16,
         dim_context = 128,
         ctx_wt = .5,
-        penalty_new_context = .1,
-        stickiness = .1,
+        penalty_new_context=0,
+        stickiness = 1,
+        lik_softmax_beta=1/3,
         lr = 1e-3,
         update_freq = 10,
         subj_id = 0,
@@ -34,13 +35,14 @@ class Parameters():
         self.ctx_wt = ctx_wt
         self.penalty_new_context = penalty_new_context
         self.stickiness = stickiness
+        self.lik_softmax_beta = lik_softmax_beta
         # training param
         self.lr = lr
         self.update_freq = update_freq
         self.subj_id = subj_id
         # sub_dirs
         self.log_root = log_root
-        sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}-beta-{lik_softmax_beta}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
         print(self.log_dir)
