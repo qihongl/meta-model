@@ -183,8 +183,10 @@ for i in range(tvs.n_valid_files):
     model_ctx_bound_vec = context_to_bound_vec(log_cid[i])
     p_b_c = hb.get_bound_prob(tvs.valid_ids[i], 'coarse')
     p_b_f = hb.get_bound_prob(tvs.valid_ids[i], 'fine')
-    r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, porp=.1)
-    r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, porp=.1)
+    # r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, porp=.1)
+    # r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, porp=.1)
+    r_crse[i], p_crse[i] = padded_corr(model_ctx_bound_vec, p_b_c, shift=False)
+    r_fine[i], p_fine[i] = padded_corr(model_ctx_bound_vec, p_b_f, shift=False)
 
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
@@ -193,8 +195,8 @@ sns.violinplot(r_fine, ax=axes[1])
 for ax in axes:
     ax.axvline(0, ls='--', c='grey', label='0', zorder=-1)
     ax.legend()
-axes[0].set_title(f'mean r = %.3f' % (r_crse.mean()))
-axes[1].set_title(f'mean r = %.3f' % (r_fine.mean()))
+axes[0].set_title(f'mean r = %.3f' % (np.nanmean(r_crse)))
+axes[1].set_title(f'mean r = %.3f' % (np.nanmean(r_fine)))
 axes[1].set_xlabel('Point biserial correlation')
 axes[0].set_ylabel('Coarse')
 axes[1].set_ylabel('Fine')
