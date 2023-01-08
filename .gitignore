@@ -1,5 +1,7 @@
 data/*
 log/*
+old_data/*
+output-selected/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
