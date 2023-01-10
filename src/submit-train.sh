@@ -1,5 +1,5 @@
 #!/bin/bash
-dim_hidden=16
+
 ctx_wt=.5
 penalty_new_context=0
 lik_softmax_beta=0.33
@@ -12,7 +12,7 @@ do
     do
       for dim_context in 128
       do
-        for dim_hidden in 16 32 
+        for dim_hidden in 16 32
         do
           for stickiness in 0 .1 .5 1
           do
