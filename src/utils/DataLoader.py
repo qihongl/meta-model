@@ -47,6 +47,15 @@ class DataLoader:
             return x_pca, t_f1
         return x_pca
 
+    def get_1st_frame_ids(self, event_id_str_list, to_sec=True, round=False):
+        f1_ids = np.zeros(len(event_id_str_list))
+        for i, event_id_str in enumerate(event_id_str_list):
+            fpath = self.event_id_str_to_fpath(event_id_str)
+            df = pickle_load(fpath)
+            f1_ids[i] = self.get_frame1_time(df, to_sec=to_sec, round=round)
+        return f1_ids
+
+
     # def get_all_data(self, to_torch=True, get_f1_id=False, verbose=False):
     #     X_pca = [None] * self.n_files
     #     frame1_id = [None] * self.n_files
@@ -74,5 +83,4 @@ if __name__ == "__main__":
     x_pca = dl.get_x_pca(df, to_torch=True)
     f1_time = dl.get_frame1_time(df)
     print(f1_time)
-
     type(df)

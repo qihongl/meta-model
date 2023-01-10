@@ -54,7 +54,10 @@ def get_point_biserial(boundaries_binned, binned_comp, scale=True) -> float:
         return r_pb, None
 
 
-def padded_corr(event_bound_vec, p_human_bound, shift=True, corr_f=get_point_biserial, porp=.2, step_size=1):
+def padded_corr(
+        event_bound_vec, p_human_bound, shift=True,
+        corr_f=get_point_biserial, porp=.1, step_size=1
+    ):
     assert corr_f in [pointbiserialr, pearsonr, get_point_biserial]
     # compute the padding size
     event_bound_vec, p_human_bound = pad_vector_to_same_length(

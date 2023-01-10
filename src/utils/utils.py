@@ -54,17 +54,22 @@ def context_to_bound_vec(context):
     return diff
 
 
-def loss_to_bound_vec(loss, percentile=10):
-    loss = to_np(torch.stack(loss))
-    threshold = np.percentile(loss, percentile)
-    return loss < threshold
+def loss_to_bound_vec(loss, model_bound_vec):
+    n_boundaries = int(model_bound_vec.sum())
+    loss_peak_times = np.argsort(loss)[-n_boundaries:]
+    loss_bound_vec = np.zeros_like(model_bound_vec)
+    for t in loss_peak_times:
+        loss_bound_vec[t] = 1
+    return loss_bound_vec
 
 
 if __name__ == "__main__":
     '''how to use'''
 
-    context = np.array([1,1,1,2,2,2,1,1,1,1])
-    bound_vec = context_to_bound_vec(context)
-
-    print(context)
-    print(bound_vec)
+    # context = np.array([1,1,1,2,2,2,1,1,1,1])
+    # bound_vec = context_to_bound_vec(context)
+    #
+    # print(context)
+    # print(bound_vec)
+    loss = np.array([1,2,3,4,5,2,1,2,2])
+    loss_to_bound_vec(loss)

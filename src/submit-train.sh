@@ -2,17 +2,17 @@
 dim_hidden=16
 ctx_wt=.5
 penalty_new_context=0
-lik_softmax_beta=0.333
+lik_softmax_beta=0.33
 
 for subj_id in {0..2}
 do
    for lr in 1e-3 1e-4
    do
-       for update_freq in 1 4 16
+       for update_freq in 1 4
        do
-           for dim_context in 64 256
+           for dim_context in 128
            do
-               for stickiness in 1 4
+               for stickiness in 0 .1 .5 1
                do
                    sbatch train.sh \
                        ${subj_id} \

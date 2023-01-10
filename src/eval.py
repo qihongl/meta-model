@@ -18,6 +18,7 @@ from model import SimpleContext
 from utils import to_np, to_pth, split_video_id, context_to_bound_vec, loss_to_bound_vec, load_ckpt, padded_corr
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from scipy.stats import pointbiserialr, pearsonr
+from train import run_model
 
 
 sns.set(style='white', palette='colorblind', context='talk')
@@ -55,6 +56,50 @@ param_combos = itertools.product(
     stickiness_list
 )
 
+def run_model(event_id_list, p, save_weights=True, learning=True, save_freq=10):
+    # prealooc
+    loss_by_events = [[] for _ in range(len(event_id_list))]
+    log_cid = [[] for _ in range(len(event_id_list))]
+
+    for i, event_id in enumerate(event_id_list):
+        # save data for every other k epochs
+        if save_weights and i % save_freq == 0:
+            save_ckpt(i, p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
+        print(f'Learning event {i} / {len(event_id_list)} - {event_id}')
+        t_start = time.time()
+        # get data
+        X = dl.get_data(event_id)
+        T = len(X) - 1
+        # prealloc
+        log_cid_i = np.zeros(T, )
+        # run the model over time
+        loss = 0
+        h_t = agent.get_init_states()
+        for t in tqdm(range(T)):
+            # context - full inference
+            lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, softmax_beta=p.lik_softmax_beta)
+            log_cid_i[t], c_vec = sc.assign_context(lik, get_context_vector=True, verbose=1)
+            # forward
+            [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
+            # record losses
+            loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
+            loss += loss_it
+            loss_by_events[i].append(loss_it)
+            # update weights for every other t time points
+            if learning and t % update_freq == 0:
+                optimizer.zero_grad()
+                loss.backward(retain_graph=True)
+                optimizer.step()
+        log_cid[i] = log_cid_i
+        print('Time elapsed = %.2f sec' % (time.time() - t_start))
+    # save the final weights
+    if save_weights:
+        save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
+    print('done')
+    return log_cid, loss_by_events
+
+
+
 for params in param_combos:
     print(params)
     (subj_id, lr, update_freq, dim_hidden, dim_context, ctx_wt, penalty_new_context,stickiness) = params
@@ -89,8 +134,6 @@ for params in param_combos:
     )
     optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
     sc = SimpleContext(p.dim_context, p.penalty_new_context, p.stickiness)
-    # get all ckpt files
-    # ckpt_fpaths, ckpt_fnames = list_fnames(p.log_dir, 'ckpt*')
     # load ckpt
     agent, optimizer, sc_dict = load_ckpt(tvs.n_train_files, p.log_dir, agent, optimizer)
     # agent, optimizer, sc_dict = load_ckpt(10, p.log_dir, agent, optimizer)
@@ -98,56 +141,8 @@ for params in param_combos:
 
     if agent is None:
         continue
-
-    def run_model(event_id_list, p, save_weights=True, learning=True, save_freq=10):
-        loss_by_events = [[] for _ in range(len(event_id_list))]
-        log_cid = [[] for _ in range(len(event_id_list))]
-
-        for i, event_id in enumerate(event_id_list):
-            # save data for every other k epochs
-            if save_weights and i % save_freq == 0:
-                save_ckpt(i, p.log_dir, agent, optimizer, verbose=True)
-            print(f'Learning event {i} / {len(event_id_list)} - {event_id}')
-            t_start = time.time()
-            # get data
-            X = dl.get_data(event_id)
-            T = len(X) - 1
-            # prealloc
-            log_cid_i = np.zeros(T, )
-            # run the model over time
-            loss = 0
-            h_t = agent.get_init_states()
-            for t in tqdm(range(T)):
-                # context - full inference
-                # pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-                pe = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context)
-                pe[0] = pe[0] + p.penalty_new_context
-                pe[sc.prev_cluster_id] = pe[sc.prev_cluster_id] - p.stickiness
-                log_cid_i[t], c_vec = sc.assign_context(-pe, get_context_vector=True, verbose=1)
-                # forward
-                [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
-                # record losses
-                loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
-                loss += loss_it
-                loss_by_events[i].append(loss_it)
-                # update weights for every other t time points
-                if learning and t % update_freq == 0:
-                    optimizer.zero_grad()
-                    loss.backward(retain_graph=True)
-                    optimizer.step()
-            log_cid[i] = log_cid_i
-            print('Time elapsed = %.2f sec' % (time.time() - t_start))
-        # save the final weights
-        if save_weights:
-            save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, verbose=True)
-        print('done')
-        return log_cid, loss_by_events
-
-
     '''evaluate loss on the validation set'''
     log_cid, loss_by_events = run_model(tvs.valid_ids, p=p, save_weights=False, learning=False)
-
-
 
     '''plot the data '''
     loss_mu_by_events = [torch.stack(loss_event_i).mean() for loss_event_i in loss_by_events]

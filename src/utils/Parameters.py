@@ -9,7 +9,7 @@ class Parameters():
         ctx_wt = .5,
         penalty_new_context=0,
         stickiness = 1,
-        lik_softmax_beta=1/3,
+        lik_softmax_beta=.33,
         lr = 1e-3,
         update_freq = 10,
         subj_id = 0,
@@ -45,13 +45,16 @@ class Parameters():
         sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}-beta-{lik_softmax_beta}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
+        self.result_dir = os.path.join(self.log_root, sub_dirs, 'result')
         print(self.log_dir)
         print(self.fig_dir)
+        print(self.result_dir)
         self.gen_log_dirs(verbose=verbose)
 
     def gen_log_dirs(self, verbose=False):
         mkdir_ifdne(self.log_dir, verbose)
         mkdir_ifdne(self.fig_dir, verbose)
+        mkdir_ifdne(self.result_dir, verbose)
 
 
 def mkdir_ifdne(dir_name, verbose=False):

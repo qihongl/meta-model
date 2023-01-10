@@ -10,10 +10,12 @@ class EventLabel:
 
     def __init__(self):
         self.df = pd.read_csv(EVENT_LABEL_FPATH)
+        self.all_evnames = np.unique(self.df['evname'])
+        self.n_evnames = len(self.all_evnames)
 
-    def get_evs(self, event_id):
+    def get_subdf(self, event_id):
         '''
-        input: a string in the form of '6.1.4_kinect_sep_09.pkl'
+        input: a string in the form of '6.1.4.pkl'
         output: the corresponding evnum
         '''
         return self.df.loc[self.df['run'] == event_id]
@@ -23,11 +25,11 @@ class EventLabel:
         input: a string in the form of '6.1.4_kinect_sep_09.pkl'
         output: a list of all event numbers
         '''
-        sub_df = self.get_evs(event_id)
+        sub_df = self.get_subdf(event_id)
         return list(sub_df['evnum'])
 
     def get_bounds(self, event_id, to_sec=False):
-        sub_df = self.get_evs(event_id)
+        sub_df = self.get_subdf(event_id)
         event_boundary_times = np.array(
             list(sub_df['startsec']) + [list(sub_df['endsec'])[-1]]
         )
@@ -43,7 +45,7 @@ class EventLabel:
         input: a string in the form of '6.1.4_kinect_sep_09.pkl'
         output: a tuple - (ev start times, ev end times)
         '''
-        sub_df = self.get_evs(event_id)
+        sub_df = self.get_subdf(event_id)
         event_df = sub_df.loc[sub_df['evnum'] == event_num]
         t_start, t_end = (float(event_df['startsec']), float(event_df['endsec']))
         # if to_sec:
@@ -68,12 +70,16 @@ if __name__ == "__main__":
 
     evlab = EventLabel()
 
+
+
     event_id = '1.1.1'
-    sub_df = evlab.get_evs(event_id)
+    sub_df = evlab.get_subdf(event_id)
     sub_df['startsec']
+    print(evlab.all_evnames)
+    print(evlab.n_evnames)
 
 
-    evlab.get_all_evnums(event_id)
+    evnums = evlab.get_all_evnums(event_id)
 
     (t_start, t_end) = evlab.get_subev_times(event_id, 1)
     print(t_start, t_end)
