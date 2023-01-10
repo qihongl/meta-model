@@ -11,9 +11,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 from sklearn.metrics import mutual_info_score
 from sklearn.svm import LinearSVC
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from utils import ID2CHAPTER, split_video_id
 from utils import EventLabel, TrainValidSplit, DataLoader, HumanBondaries
@@ -41,6 +41,7 @@ for i, event_id in enumerate(event_id_list):
     # get ground truth boundaries
     df_i = evlab.get_subdf(event_id)
     for evname, evnum, t_start, t_end in zip(df_i['evname'], df_i['evnum'], df_i['startsec'], df_i['endsec']):
+        t_start, t_end = int(t_start * 3), int(t_end * 3)
         # adjust time index
         if t_start > t_f1:
             t_start -= t_f1
@@ -49,49 +50,58 @@ for i, event_id in enumerate(event_id_list):
             t_end = len(X)
         if t_start > len(X):
             continue
-        t_start, t_end = int(t_start * 3), int(t_end * 3)
+        t_start, t_end = int(t_start), int(t_end)
         # compute scene vector
         sv = np.nanmean(X[t_start: t_end, :], axis=0)
         subev_id = list(evlab.all_evnames).index(evname)
         # remove nan vector
         if np.sum(np.isnan(sv)) > 0:
             continue
-        scene_vecs.append(sv)
-        subev_ids.append(subev_id)
+        scene_vecs.append(X[t_start: t_end, :])
+        subev_ids.append([subev_id] * (t_end - t_start))
+        assert np.shape(X[t_start: t_end, :])[0] == (t_end - t_start)
 
         if i == tvs.n_train_files:
             n_train_scene_vecs = len(scene_vecs)
 
-scene_vecs = np.array(scene_vecs)
-subev_ids = np.array(subev_ids)
-print(f'data shape : {np.shape(scene_vecs)}')
-print(f'detected nan data {np.sum(np.isnan(scene_vecs))}')
+scene_vecs_s = np.vstack(scene_vecs)
+subev_ids_s = np.concatenate(subev_ids)
+n_train_vecs = np.shape(np.vstack(scene_vecs[:n_train_scene_vecs]))[0]
+
+
+
+print(f'X shape : {np.shape(scene_vecs_s)}')
+print(f'Y shape : {np.shape(subev_ids_s)}')
 
 '''split data '''
-X_tr = scene_vecs[:n_train_scene_vecs,:]
-X_te = scene_vecs[n_train_scene_vecs:,:]
-Y_tr = subev_ids[:n_train_scene_vecs]
-Y_te = subev_ids[n_train_scene_vecs:]
+X_tr = scene_vecs_s[:n_train_vecs,:]
+X_te = scene_vecs_s[n_train_vecs:,:]
+Y_tr = subev_ids_s[:n_train_vecs]
+Y_te = subev_ids_s[n_train_vecs:]
 
-unique, counts = np.unique(Y_te, return_counts=True)
+'''classification - individual scene vector'''
+# unique, counts = np.unique(Y_te, return_counts=True)
+#
+# majority_guess_baseline = np.max(counts) / len(Y_te)
+# uniform_guess_baseline = 1 / evlab.n_evnames
+# print(majority_guess_baseline)
+# print(uniform_guess_baseline)
+#
+# svm = LinearSVC()
+# svm.fit(X_tr, Y_tr)
+# Y_pred = svm.predict(X_te)
+# test_acc = np.mean(Y_pred == Y_te)
+# print('decode sub event - test accuracy %.3f' % test_acc)
 
-majority_guess_baseline = np.max(counts) / len(Y_te)
-uniform_guess_baseline = 1 / evlab.n_evnames
-print(majority_guess_baseline)
-print(uniform_guess_baseline)
+''' classification output
+0.0988981909160893
+0.021739130434782608
+decode sub event - test accuracy 0.516
+'''
 
-'''classification'''
-svm = LinearSVC()
-svm.fit(X_tr, Y_tr)
-Y_pred = svm.predict(X_te)
-test_acc = np.mean(Y_pred == Y_te)
-print('decode sub event - test accuracy %.3f' % test_acc)
+'''clustering - individual scene vector'''
 
-
-'''clustering'''
-from sklearn.cluster import KMeans
-
-k = 35
+k = 45
 kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
 clustering_result = kmeans.predict(X_te)
 mi = mutual_info_score(clustering_result, Y_te)
@@ -100,8 +110,10 @@ n_perms = 1000
 mi_perm = [mutual_info_score(Y_te, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
 
 f, ax = plt.subplots(1,1, figsize=(7,4))
+# sns.violinplot(mi_perm, label='null distribution',ax=ax)
 ax.hist(mi_perm, label='null distribution')
-ax.axvline(mi, ls='--', color='black', label='kNN clustering')
+# ax.axvline(mi, ls='--', color='black', label='kNN clustering')
 ax.set_xlabel('mutual information')
+# ax.set_xlim([0, 2])
 ax.legend()
 sns.despine()
