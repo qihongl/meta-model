@@ -15,8 +15,8 @@ hb = HumanBondaries()
 dl = DataLoader()
 
 # choose dataset
-event_id_list = tvs.train_ids
-# event_id_list = tvs.valid_ids
+# event_id_list = tvs.train_ids
+event_id_list = tvs.valid_ids
 
 # loop over events
 time_truth = np.zeros(len(event_id_list), )
@@ -33,7 +33,7 @@ for i, event_id in enumerate(event_id_list):
     bound_times_min[i], bound_times_max[i] = np.min(bound_times), np.max(bound_times)
 
     time_truth[i] = event_ed_t - event_st_t
-    time_X[i] = len(X_i)
+    time_X[i] = len(X_i) + t_f1[i] / 3
 
 
 maxsmin_bound_time = np.array(bound_times_max-bound_times_min)

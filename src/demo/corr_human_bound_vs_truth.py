@@ -48,19 +48,3 @@ ax.set_title(f'mean r = %.3f' % (r_fine.mean()))
 ax.set_xlabel('r')
 sns.despine()
 f.tight_layout()
-
-
-f, ax = plt.subplots(1,1, figsize=(5,4))
-sns.histplot(p_crse, ax=ax)
-sns.despine()
-ax.set_title(f'mean p = %.3f' % (p_crse.mean()))
-ax.set_xlabel('p')
-f.tight_layout()
-
-
-f, ax = plt.subplots(1,1, figsize=(5,4))
-sns.histplot(p_fine, ax=ax)
-ax.set_title(f'mean p = %.3f' % (p_fine.mean()))
-ax.set_xlabel('p')
-sns.despine()
-f.tight_layout()
