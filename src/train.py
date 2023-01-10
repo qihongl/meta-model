@@ -154,7 +154,15 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 log_cid_tr, loss_by_events_tr = run_model(tvs.train_ids, p=p, train_mode=True)
 log_cid, loss_by_events = run_model(tvs.valid_ids, p=p, train_mode=False)
 
-
+'''save results'''
+result_dict = {
+    'log_cid_tr' : log_cid_tr,
+    'log_cid' : log_cid,
+    'loss_by_events_tr' : loss_by_events_tr,
+    'loss_by_events' : loss_by_events,
+}
+result_path = os.path.join(p.result_dir, f'result.pkl')
+pickle_save(result_dict, result_path)
 
 '''plot the data '''
 # plot loss by valid event
