@@ -55,8 +55,8 @@ def get_point_biserial(boundaries_binned, binned_comp, scale=True) -> float:
 
 
 def padded_corr(
-        event_bound_vec, p_human_bound, shift=True,
-        corr_f=get_point_biserial, porp=.1, step_size=1
+        event_bound_vec, p_human_bound,
+        corr_f=get_point_biserial, porp=.1, step_size=1, shift=False,
     ):
     assert corr_f in [pointbiserialr, pearsonr, get_point_biserial]
     # compute the padding size
@@ -100,9 +100,14 @@ def compute_stats(matrix, axis=0, n_se=2, omitnan=False):
 
 
 if __name__ == "__main__":
-    x = np.array([0,1,0])
-    y = np.array([0.1,.8,.1])
-    r = get_point_biserial(x, y, scale=True)
+    # x = np.array([0,1,0])
+    # y = np.array([0.1,.8,.1])
+    # r = get_point_biserial(x, y, scale=True)
 
     # z = np.array([-1, -2, -1])
     # print(stable_softmax(z, beta=1/3))
+
+    boundaries_binned = np.array([0, 0, 1, 0, 0, 1, 0])
+    binned_comp = np.array([0, 0, 1, 0, 0, 0, 0])
+    r = get_point_biserial(boundaries_binned, binned_comp, scale=True)
+    print(r)

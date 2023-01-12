@@ -7,9 +7,9 @@ class Parameters():
         dim_hidden = 16,
         dim_context = 128,
         ctx_wt = .5,
-        penalty_new_context=0,
         stickiness = 1,
         lik_softmax_beta=.33,
+        try_reset_h=False,
         lr = 1e-3,
         update_freq = 10,
         subj_id = 0,
@@ -22,7 +22,6 @@ class Parameters():
         assert dim_hidden > 0 and dim_input > 0 and dim_output > 0
         assert dim_context >= 0
         assert 1 >= ctx_wt >= 0
-        assert penalty_new_context >= 0
         assert stickiness >= 0
         assert lr > 0
 
@@ -33,16 +32,16 @@ class Parameters():
         self.dim_output = dim_output
         # symbolic model params
         self.ctx_wt = ctx_wt
-        self.penalty_new_context = penalty_new_context
         self.stickiness = stickiness
         self.lik_softmax_beta = lik_softmax_beta
+        self.try_reset_h = try_reset_h
         # training param
         self.lr = lr
         self.update_freq = update_freq
         self.subj_id = subj_id
         # sub_dirs
         self.log_root = log_root
-        sub_dirs = f'dH-{dim_hidden}/dC-{dim_context}-wC-{ctx_wt}/pNew-{penalty_new_context}-s-{stickiness}-beta-{lik_softmax_beta}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
         self.result_dir = os.path.join(self.log_root, sub_dirs, 'result')
@@ -68,7 +67,6 @@ if __name__ == "__main__":
     dim_hidden = 16
     dim_context = 128
     ctx_wt = .5
-    penalty_new_context = .1
     stickiness = .1
     lr = 1e-3
 
@@ -76,7 +74,6 @@ if __name__ == "__main__":
         dim_hidden = dim_hidden,
         dim_context = dim_context,
         ctx_wt = ctx_wt,
-        penalty_new_context = penalty_new_context,
         stickiness = stickiness,
         lr = lr,
         dont_make_dir=True # testing

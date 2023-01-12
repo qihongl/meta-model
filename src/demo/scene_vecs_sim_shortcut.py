@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from sklearn.metrics import mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.cluster import KMeans
@@ -78,41 +79,22 @@ X_te = scene_vecs_s[n_train_vecs:,:]
 Y_tr = subev_ids_s[:n_train_vecs]
 Y_te = subev_ids_s[n_train_vecs:]
 
-'''classification - individual scene vector'''
-unique, counts = np.unique(Y_te, return_counts=True)
-
-majority_guess_baseline = np.max(counts) / len(Y_te)
-uniform_guess_baseline = 1 / evlab.n_evnames
-print(majority_guess_baseline)
-print(uniform_guess_baseline)
-
-# svm = LinearSVC()
-# svm.fit(X_tr, Y_tr)
-# Y_pred = svm.predict(X_te)
-# test_acc = np.mean(Y_pred == Y_te)
-# print('decode sub event - test accuracy %.3f' % test_acc)
-
-''' classification output
-0.0988981909160893
-0.021739130434782608
-decode sub event - test accuracy 0.516
-'''
-
-'''clustering - individual scene vector'''
-
-k = 45
-kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
-clustering_result = kmeans.predict(X_te)
-mi = mutual_info_score(clustering_result, Y_te)
-
-n_perms = 1000
-mi_perm = [mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
-
-f, ax = plt.subplots(1,1, figsize=(7,4))
-# sns.violinplot(mi_perm, label='null distribution',ax=ax)
-ax.hist(mi_perm, label='null distribution')
-# ax.axvline(mi, ls='--', color='black', label='kNN clustering')
-ax.set_xlabel('mutual information')
-# ax.set_xlim([0, 2])
-ax.legend()
-sns.despine()
+# # for i, x in enumerate(tqdm(X_tr)):
+#
+# '''clustering - try what '''
+# k = 45
+# kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
+# clustering_result = kmeans.predict(X_te)
+# mi = mutual_info_score(clustering_result, Y_te)
+#
+# n_perms = 1000
+# mi_perm = [mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
+#
+# f, ax = plt.subplots(1,1, figsize=(7,4))
+# # sns.violinplot(mi_perm, label='null distribution',ax=ax)
+# ax.hist(mi_perm, label='null distribution')
+# # ax.axvline(mi, ls='--', color='black', label='kNN clustering')
+# ax.set_xlabel('mutual information')
+# # ax.set_xlim([0, 2])
+# ax.legend()
+# sns.despine()

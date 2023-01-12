@@ -7,12 +7,19 @@ from utils import compute_stats
 from scipy.stats import pearsonr
 sns.set(style='white', palette='colorblind', context='talk')
 
-for d in [2**x for x in np.arange(4, 11)]:
+n_sims = 2
+more = 0
 
-    n_sims = 15
-    # d = 64
-    more = 0
-    ns = [2**(k+1) for k in np.arange(int(np.log2(d)) + more)]
+f, axes = plt.subplots(1,2, figsize=(12, 5), sharey=True, sharex=True)
+
+d_list = [2**x for x in np.arange(4, 11)]
+max_d = max(d_list)
+cpal = sns.color_palette('viridis', n_colors=len(d_list))
+
+corrs_dict = {d : [] for d in d_list}
+
+for di, d in enumerate(d_list):
+    ns = [2**(k+1) for k in np.arange(int(np.log2(max_d)) + more)]
 
     def compute_pcorr(d, ns):
         X = np.random.normal(size=(max(ns), d))
@@ -22,31 +29,48 @@ for d in [2**x for x in np.arange(4, 11)]:
             corr_mat = np.corrcoef(X[:n,:])
             corr_mat_no_diag = corr_mat * (1 - np.eye(n))
             # compute stats
-            max_corr[i] = np.max(corr_mat_no_diag)
-            mean_corr[i] = np.mean(corr_mat_no_diag)
-        return mean_corr, max_corr
+            max_corr[i] = np.max(np.abs(corr_mat_no_diag))
+            mean_corr[i] = np.mean(np.abs(corr_mat_no_diag))
+        return mean_corr, max_corr, corr_mat_no_diag[np.triu_indices(max_d, k = 1)]
 
 
     mean_corr = [None] * n_sims
     max_corr = [None] * n_sims
     for i in range(n_sims):
-        mean_corr[i], max_corr[i] = compute_pcorr(d, ns)
+        mean_corr[i], max_corr[i], corr_mat_no_diag = compute_pcorr(d, ns)
+        corrs_dict[d].extend(corr_mat_no_diag)
+
     mean_corr, max_corr = np.array(mean_corr), np.array(max_corr)
     mean_corr_mu, mean_corr_se = compute_stats(mean_corr)
     max_corr_mu, max_corr_se = compute_stats(max_corr)
 
 
     xticks = range(len(ns))
-    # xticks = ns
-    f, ax = plt.subplots(1,1, figsize=(7,4))
-    ax.errorbar(x=xticks, y=max_corr_mu, yerr=max_corr_se, label='max')
-    ax.errorbar(x=xticks, y=mean_corr_mu, yerr=mean_corr_se, label='mean')
+    axes[0].errorbar(x=xticks, y=max_corr_mu, yerr=max_corr_se, label=f'{d}', color=cpal[di])
+    axes[1].errorbar(x=xticks, y=mean_corr_mu, yerr=mean_corr_se, color=cpal[di])
 
-    ax.legend()
-    ax.set_xlabel('# vectors')
-    ax.set_ylabel('pairwise correlation')
+
+axes[0].set_xlabel('# vectors')
+axes[0].set_ylabel('pairwise correlation')
+axes[0].set_title('max')
+axes[1].set_xlabel('# vectors')
+axes[1].set_title('mean')
+
+for ax in axes:
     ax.set_xticks(xticks)
-    ax.set_ylim([-.05, 1])
     ax.set_xticklabels(ns,rotation=30)
-    ax.set_title(f'dim = {d}\npairwise corr when #vecs = dim = %.2f' % max_corr_mu[int(np.log2(d))-1])
-    sns.despine()
+    ax.axhline(0, ls = '--', color='grey')
+sns.despine()
+
+f.legend(loc=7, title='dim(context)')
+f.tight_layout()
+f.subplots_adjust(right=0.85)
+
+
+# plot the distribution directly
+f, ax = plt.subplots(1,1, figsize=(8,5))
+for di, d in enumerate(d_list):
+    sns.kdeplot(corrs_dict[d], color=cpal[di], ax=ax, label=f'{d}')
+ax.set_xlabel('pairwise correlation')
+ax.legend()
+sns.despine()

@@ -78,7 +78,8 @@ def run_model(event_id_list, p, save_weights=True, learning=True, save_freq=10):
         for t in tqdm(range(T)):
             # context - full inference
             lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, softmax_beta=p.lik_softmax_beta)
-            log_cid_i[t], c_vec = sc.assign_context(lik, get_context_vector=True, verbose=1)
+            log_cid_i[t], c_vec, reset_h = sc.assign_context(lik, verbose=1)
+            h_t = agent.get_init_states() if reset_h else h_t
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses

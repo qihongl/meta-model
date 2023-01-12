@@ -12,8 +12,9 @@ from utils import to_pth, to_np
 class CGRU_v2(nn.Module):
 
     def __init__(
-            self, input_dim, hidden_dim, output_dim, context_dim, ctx_wt=0, bias=True,
-            sigmoid_output=False, dropout_rate=0, zero_init_state=True,
+            self, input_dim, hidden_dim, output_dim, context_dim, ctx_wt=0,
+            softmax_beta=None, try_reset_h=False,
+            bias=True, sigmoid_output=False, dropout_rate=0, zero_init_state=True,
         ):
         super(CGRU_v2, self).__init__()
         self.input_dim = input_dim
@@ -36,6 +37,9 @@ class CGRU_v2(nn.Module):
         self.zero_init_state = zero_init_state
         # optimization crit
         self.criterion = nn.MSELoss()
+        self.softmax_beta = softmax_beta
+        # compute
+        self.try_reset_h = try_reset_h
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -79,7 +83,7 @@ class CGRU_v2(nn.Module):
             [yhat_t, h_t], _ = self.forward(x_t, h, context_t=context_t)
         return yhat_t
 
-    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, softmax_beta=None, verbose=True):
+    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, verbose=True):
         # loop over all ctx ...
         n_contexts = len(contexts)
         pe = torch.zeros(n_contexts, )
@@ -89,19 +93,25 @@ class CGRU_v2(nn.Module):
             pe[k] = self.criterion(y_t, torch.squeeze(yhat_k))
 
         # decide if whether to restart the ongoing context
-        if prev_context_id is not None:
+        if prev_context_id is not None and self.try_reset_h:
             yhat_prev_restart = self.forward_nograd(
                 x_t, self.get_init_states(), to_pth(contexts[prev_context_id])
             )
             pe_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
-            if pe_prev_restart < pe[prev_context_id]:
-                pe[prev_context_id] = pe_prev_restart
-                if verbose:
-                    print('Restart the ongoing context')
 
-        if softmax_beta is not None:
-            return stable_softmax(to_np(pe), softmax_beta)
-        return to_np(pe)
+            # if pe_prev_restart < pe[prev_context_id]:
+            #     pe[prev_context_id] = pe_prev_restart
+            #     if verbose:
+            #         print('Restart the ongoing context')
+            # concat, keep both pe values
+            pe = torch.cat([pe, pe_prev_restart.view(1)])
+
+        # softmax the pe
+        if self.softmax_beta is not None:
+            pe = stable_softmax(to_np(pe), self.softmax_beta)
+        else:
+            pe = to_np(pe)
+        return pe
 
 
     def get_kaiming_states(self):

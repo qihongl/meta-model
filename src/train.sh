@@ -17,9 +17,9 @@ srun python -u train.py \
     --dim_hidden ${4} \
     --dim_context ${5} \
     --ctx_wt ${6} \
-    --penalty_new_context ${7} \
-    --stickiness ${8} \
-    --lik_softmax_beta ${9} \
+    --stickiness ${7} \
+    --lik_softmax_beta ${8} \
+    --try_reset_h ${9}
     --log_root $LOGROOT
 
 echo $(date)
