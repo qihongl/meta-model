@@ -25,47 +25,47 @@ sns.set(style='white', palette='colorblind', context='talk')
 python train.py --subj_id 99 --lr 1e-3 --update_freq 10 --dim_hidden 16 --dim_context 256 --ctx_wt .5  --stickiness .5 --try_reset_h 1
 sbatch train.sh 99 1e-3 10 16 256 .5 .5 .5
 '''
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--subj_id', default=99, type=int)
-# parser.add_argument('--lr', default=1e-3, type=float)
-# parser.add_argument('--update_freq', default=64, type=int)
-# parser.add_argument('--dim_hidden', default=16, type=int)
-# parser.add_argument('--dim_context', default=128, type=int)
-# parser.add_argument('--ctx_wt', default=.5, type=float)
-# parser.add_argument('--stickiness', default=1, type=float)
-# parser.add_argument('--lik_softmax_beta', default=.33, type=float)
-# parser.add_argument('--try_reset_h', default=0, type=int)
-# parser.add_argument('--log_root', default='../log', type=str)
-# args = parser.parse_args()
-# print(args)
-#
-# '''params for the model'''
-#
-# # training param
-# subj_id = args.subj_id
-# lr = args.lr
-# update_freq = args.update_freq
-# dim_hidden = args.dim_hidden
-# dim_context = args.dim_context
-# ctx_wt = args.ctx_wt
-# stickiness = args.stickiness
-# lik_softmax_beta = args.lik_softmax_beta
-# try_reset_h = bool(args.try_reset_h)
-# log_root = args.log_root
+parser = argparse.ArgumentParser()
+parser.add_argument('--subj_id', default=99, type=int)
+parser.add_argument('--lr', default=1e-3, type=float)
+parser.add_argument('--update_freq', default=64, type=int)
+parser.add_argument('--dim_hidden', default=16, type=int)
+parser.add_argument('--dim_context', default=128, type=int)
+parser.add_argument('--ctx_wt', default=.5, type=float)
+parser.add_argument('--stickiness', default=1, type=float)
+parser.add_argument('--lik_softmax_beta', default=.33, type=float)
+parser.add_argument('--try_reset_h', default=0, type=int)
+parser.add_argument('--log_root', default='../log', type=str)
+args = parser.parse_args()
+print(args)
+
+'''params for the model'''
 
 # training param
-subj_id = 0
-lr = 1e-3
-update_freq = 64
-# model param
-dim_hidden = 16
-dim_context = 128
-ctx_wt = .5
-# ctx_wt = 0
-stickiness = 1
-lik_softmax_beta = .33
-try_reset_h = 1
-log_root = '../log'
+subj_id = args.subj_id
+lr = args.lr
+update_freq = args.update_freq
+dim_hidden = args.dim_hidden
+dim_context = args.dim_context
+ctx_wt = args.ctx_wt
+stickiness = args.stickiness
+lik_softmax_beta = args.lik_softmax_beta
+try_reset_h = bool(args.try_reset_h)
+log_root = args.log_root
+
+# # training param
+# subj_id = 0
+# lr = 1e-3
+# update_freq = 64
+# # model param
+# dim_hidden = 16
+# dim_context = 128
+# ctx_wt = .5
+# # ctx_wt = 0
+# stickiness = 1
+# lik_softmax_beta = .33
+# try_reset_h = 1
+# log_root = '../log'
 
 # set seed
 np.random.seed(subj_id)
