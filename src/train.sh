@@ -19,7 +19,9 @@ srun python -u train.py \
     --ctx_wt ${6} \
     --stickiness ${7} \
     --lik_softmax_beta ${8} \
-    --try_reset_h ${9}
+    --try_reset_h ${9} \
+    --use_shortcut ${10} \
+    --gen_grad ${11} \
     --log_root $LOGROOT
 
 echo $(date)

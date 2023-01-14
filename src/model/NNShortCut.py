@@ -8,7 +8,7 @@ from utils import to_sqpth, to_sqnp
 from sklearn.model_selection import train_test_split
 
 
-class ShortCut(nn.Module):
+class NNShortCut(nn.Module):
 
     def __init__(self, input_dim, output_dim, hidden_dim=128, lr=1e-3,
         buffer_size=512, allow_redundancy=True, precision=None):

@@ -5,6 +5,7 @@ import time
 import pickle
 import torch
 import argparse
+import matplotlib
 import torch.nn as nn
 import numpy as np
 import pandas as pd
@@ -14,8 +15,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
-from model import SimpleContext
-from utils import to_np, to_pth, split_video_id, context_to_bound_vec, loss_to_bound_vec, save_ckpt, padded_corr, pickle_save, get_point_biserial
+from model import SimpleContext, SimpleShortcut
+from utils import to_np, to_pth, split_video_id, context_to_bound_vec, loss_to_bound_vec, save_ckpt, padded_corr, pickle_save, get_point_biserial, compute_stats
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import ID2CHAPTER
 from scipy.stats import pointbiserialr, pearsonr
@@ -25,12 +26,15 @@ sns.set(style='white', palette='colorblind', context='talk')
 python train.py --subj_id 99 --lr 1e-3 --update_freq 10 --dim_hidden 16 --dim_context 256 --ctx_wt .5  --stickiness .5 --try_reset_h 1
 sbatch train.sh 99 1e-3 10 16 256 .5 .5 .5
 '''
+matplotlib.use('Agg')
 parser = argparse.ArgumentParser()
 parser.add_argument('--subj_id', default=99, type=int)
 parser.add_argument('--lr', default=1e-3, type=float)
 parser.add_argument('--update_freq', default=64, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
 parser.add_argument('--dim_context', default=128, type=int)
+parser.add_argument('--use_shortcut', default=1, type=float)
+parser.add_argument('--gen_grad', default=5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--stickiness', default=1, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
@@ -47,6 +51,8 @@ lr = args.lr
 update_freq = args.update_freq
 dim_hidden = args.dim_hidden
 dim_context = args.dim_context
+use_shortcut = bool(args.use_shortcut)
+gen_grad = args.gen_grad
 ctx_wt = args.ctx_wt
 stickiness = args.stickiness
 lik_softmax_beta = args.lik_softmax_beta
@@ -62,7 +68,9 @@ log_root = args.log_root
 # dim_context = 128
 # ctx_wt = .5
 # # ctx_wt = 0
-# stickiness = 1
+# use_shortcut = 1
+# gen_grad = 5
+# stickiness = 1.25
 # lik_softmax_beta = .33
 # try_reset_h = 1
 # log_root = '../log'
@@ -77,8 +85,9 @@ evlab = EventLabel()
 hb = HumanBondaries()
 p = Parameters(
     dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
-    stickiness = stickiness, lr = lr, update_freq = update_freq,
-    subj_id = subj_id, lik_softmax_beta=lik_softmax_beta, try_reset_h = try_reset_h,
+    stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
+    subj_id = subj_id, lik_softmax_beta=lik_softmax_beta,
+    try_reset_h = try_reset_h, use_shortcut=use_shortcut,
     log_root=log_root,
 )
 # init model
@@ -91,6 +100,8 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 # context management
 sc = SimpleContext(p.dim_context, p.stickiness, p.try_reset_h)
 c_id, c_vec = sc.init_context()
+# init the shortcut
+ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad)
 
 '''train the model'''
 
@@ -104,7 +115,9 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
     # prealooc
     loss_by_events = [[] for _ in range(len(event_id_list))]
-    log_cid = [[] for _ in range(len(event_id_list))]
+    log_cid_fi = [[] for _ in range(len(event_id_list))]
+    log_cid_sc = [[] for _ in range(len(event_id_list))]
+    log_reset_h = [[] for _ in range(len(event_id_list))]
     permed_order = np.random.permutation(range(len(event_id_list)))
     for i, pi in enumerate(permed_order):
         event_id = event_id_list[pi]
@@ -115,18 +128,21 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         t_start = time.time()
         # get data
         X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
-
         T = len(X) - 1
         # prealloc
-        log_cid_i = np.zeros(T, )
+        log_cid_fi_i, log_cid_sc_i = np.zeros(T, ), np.zeros(T, )
+        log_reset_h_i = np.zeros(T, )
         # run the model over time
         loss = 0
         h_t = agent.get_init_states()
         for t in tqdm(range(T)):
             # context - full inference
             lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-            log_cid_i[t], c_vec, reset_h = sc.assign_context(lik, verbose=1)
-            h_t = agent.get_init_states() if reset_h else h_t
+            log_cid_fi_i[t], c_vec, log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
+            h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
+            # short cut inference
+            log_cid_sc_i[t] = ssc.predict(to_np(X[t]))
+            ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
@@ -139,30 +155,35 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
                 optimizer.step()
-        log_cid[i] = log_cid_i
+        ssc.update_model()
+        log_cid_fi[i] = log_cid_fi_i
+        log_cid_sc[i] = log_cid_sc_i
+        log_reset_h[i] = log_reset_h_i
         print('Time elapsed = %.2f sec' % (time.time() - t_start))
     # save the final weights
     if save_weights:
         save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
 
     result_dict = {
-        'log_cid' : log_cid,
+        'log_cid_fi' : log_cid_fi,
+        'log_cid_sc' : log_cid_sc,
         'loss_by_events' : loss_by_events,
+        'log_reset_h' : log_reset_h,
     }
     result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
     pickle_save(result_dict, result_fname)
     print('done')
-    return log_cid, loss_by_events
+    return log_cid_fi, log_cid_sc, loss_by_events, log_reset_h
 
 
 '''evaluate loss on the validation set'''
-log_cid_tr, loss_by_events_tr = run_model(tvs.train_ids, p=p, train_mode=True)
-log_cid, loss_by_events = run_model(tvs.valid_ids, p=p, train_mode=False)
+log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = run_model(tvs.train_ids, p=p, train_mode=True)
+log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = run_model(tvs.valid_ids, p=p, train_mode=False)
 
 
 '''plot the data '''
 # plot loss by valid event
-loss_mu_by_events = [torch.stack(loss_event_i).mean() for loss_event_i in loss_by_events]
+loss_mu_by_events = [torch.stack(loss_event_i).mean() for loss_event_i in loss_by_events_te]
 f, ax = plt.subplots(1,1, figsize=(7,4))
 ax.plot(loss_mu_by_events)
 ax.set_title('%.3f' % torch.stack(loss_mu_by_events).mean())
@@ -175,12 +196,12 @@ f.savefig(fig_path, dpi=100)
 
 def num_boundaries_per_event(log_cid_):
     model_ctx_bound_vec_list = []
-    for i, log_cid_i in enumerate(log_cid_):
-        model_ctx_bound_vec_list.append(context_to_bound_vec(log_cid_i))
+    for i, log_cid_j in enumerate(log_cid_):
+        model_ctx_bound_vec_list.append(context_to_bound_vec(log_cid_j))
     return np.array([np.sum(x) for x in model_ctx_bound_vec_list])
 
-num_boundaries_tr = num_boundaries_per_event(log_cid_tr)
-num_boundaries_te = num_boundaries_per_event(log_cid)
+num_boundaries_tr = num_boundaries_per_event(log_cid_fi_tr)
+num_boundaries_te = num_boundaries_per_event(log_cid_fi_te)
 
 f, ax = plt.subplots(1,1, figsize=(7,4))
 sns.kdeplot(num_boundaries_tr, ax=ax, label='train')
@@ -194,7 +215,7 @@ f.savefig(fig_path, dpi=100)
 
 # plot n context over time
 def compute_n_ctx_over_time(log_cid_):
-    max_ctx_by_events = [np.max(log_cid_tr_i) for log_cid_tr_i in log_cid_]
+    max_ctx_by_events = [np.max(log_cid_fi_tr_i) for log_cid_fi_tr_i in log_cid_]
     max_ctx_so_far = 0
     for i in range(len(max_ctx_by_events)):
         if max_ctx_by_events[i] > max_ctx_so_far:
@@ -203,7 +224,7 @@ def compute_n_ctx_over_time(log_cid_):
             max_ctx_by_events[i] = max_ctx_so_far
     return max_ctx_by_events
 
-n_ctx_over_time = compute_n_ctx_over_time(log_cid_tr)
+n_ctx_over_time = compute_n_ctx_over_time(log_cid_fi_tr)
 f, ax = plt.subplots(1,1, figsize=(5,4))
 ax.plot(n_ctx_over_time)
 ax.set_xlabel('training video id')
@@ -243,8 +264,8 @@ def plot_event_len_distribution(event_len_, to_sec=True):
     return f, ax
 
 
-event_len_tr = get_event_len(log_cid_tr)
-event_len_te = get_event_len(log_cid)
+event_len_tr = get_event_len(log_cid_fi_tr)
+event_len_te = get_event_len(log_cid_fi_te)
 f, ax = plot_event_len_distribution(event_len_tr)
 fig_path = os.path.join(p.fig_dir, f'len-event-train.png')
 f.savefig(fig_path, dpi=100)
@@ -254,10 +275,10 @@ f.savefig(fig_path, dpi=100)
 
 '''correlation with human boundaries'''
 
-r_m_crse = np.zeros(len(log_cid),)
-r_m_fine = np.zeros(len(log_cid),)
-r_l_crse = np.zeros(len(log_cid),)
-r_l_fine = np.zeros(len(log_cid),)
+r_m_crse = np.zeros(len(log_cid_fi_te),)
+r_m_fine = np.zeros(len(log_cid_fi_te),)
+r_l_crse = np.zeros(len(log_cid_fi_te),)
+r_l_fine = np.zeros(len(log_cid_fi_te),)
 model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
 event_id_list = tvs.valid_ids
 t_f1 = dl.get_1st_frame_ids(event_id_list)
@@ -266,9 +287,9 @@ for i, event_id in enumerate(event_id_list):
     chb = hb.get_bound_prob(event_id_list[i], 'coarse')
     fhb = hb.get_bound_prob(event_id_list[i], 'fine')
     # get model bounds
-    model_ctx_bound_vec = context_to_bound_vec(log_cid[i])
+    model_ctx_bound_vec = context_to_bound_vec(log_cid_fi_te[i])
     model_ctx_bound_loc = np.where(model_ctx_bound_vec)[0]
-    model_loss_bound_vec = loss_to_bound_vec(loss_by_events[i], model_ctx_bound_vec)
+    model_loss_bound_vec = loss_to_bound_vec(loss_by_events_te[i], model_ctx_bound_vec)
     # get the true event label
     event_bound_times, event_bound_vec = evlab.get_bounds(event_id_list[i])
 
@@ -345,11 +366,68 @@ sns.despine()
 fig_path = os.path.join(p.fig_dir, f'final-r-loss-vs-human-bounds.png')
 f.savefig(fig_path, dpi=100)
 
+# compute shortcut accuracy over time
+sc_acc_tr, sc_acc_te = [], []
+for i, (log_cid_fi_tr_i, log_cid_sc_tr_i) in enumerate(zip(log_cid_fi_tr, log_cid_sc_tr)):
+    sc_acc_tr.append(np.mean(log_cid_fi_tr_i == log_cid_sc_tr_i))
+for i, (log_cid_fi_te_i, log_cid_sc_te_i) in enumerate(zip(log_cid_fi_te, log_cid_sc_te)):
+    sc_acc_te.append(np.mean(log_cid_fi_te_i == log_cid_sc_te_i))
 
-# mb_ = model_bounds_c
-# hb_ = chbs
+sc_acc_tr_mu, sc_acc_tr_se = compute_stats(sc_acc_tr)
+sc_acc_te_mu, sc_acc_te_se = compute_stats(sc_acc_te)
+f, axes = plt.subplots(1,2, figsize=(10,4), sharey=True)
+axes[0].plot(sc_acc_tr)
+axes[1].plot(sc_acc_te)
+axes[0].set_ylim([0,1])
+axes[0].set_ylabel('% match shortcut vs. full inference')
+axes[0].set_xlabel('training videos')
+axes[1].set_xlabel('validation videos')
+axes[0].set_title('mean = %.2f' % np.mean(sc_acc_tr_mu))
+axes[1].set_title('mean = %.2f' % np.mean(sc_acc_te_mu))
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'shortcut-acc.png')
+f.savefig(fig_path, dpi=100)
+
+f, ax = plt.subplots(1,1, figsize=(5,4))
+xticks = range(2)
+ax.bar(x=xticks, height=[sc_acc_tr_mu, sc_acc_te_mu], yerr=[sc_acc_tr_se, sc_acc_te_se])
+ax.set_xticks(xticks)
+ax.set_xticklabels(['train', 'validation'])
+ax.set_title('% match shortcut vs. full inference')
+ax.set_ylabel('% match')
+ax.set_ylim([0,1])
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'shortcut-acc-bar.png')
+f.savefig(fig_path, dpi=100)
+
+'''more segs if new actor or new chapter? - NO '''
+# boundaries vs. k-th time seeing an chapter/actor
+# - by # of new subevents is better?
+# log_cid_fi_all = log_cid_fi_tr + log_cid_fi_te
+# num_boundaries = np.concatenate([num_boundaries_tr, num_boundaries_te])
+# actor_ids = [None] * len(log_cid_fi_all)
+# chapter_ids = [None] * len(log_cid_fi_all)
+# n_actor_obs = np.zeros(len(log_cid_fi_all),)
+# n_chapter_obs = np.zeros(len(log_cid_fi_all),)
+# used_ctxs = set()
+# n_new_ctxs = np.zeros(len(log_cid_fi_all),)
+# for i, (event_id, log_cid_fi_i) in enumerate(zip(tvs.all_ids, log_cid_fi_all)):
+#     # if i > 10: break
+#     used_ctxs_up_to_i = set(log_cid_fi_i).union(used_ctxs)
+#     n_new_ctxs[i] = len(used_ctxs_up_to_i) - len(used_ctxs)
+#     actor_id, chapter_id, _ = split_video_id(event_id)
+#     # compute dependent vars - related to novelty
+#     n_actor_obs[i] = np.sum(np.array(actor_ids[:i]) == actor_id)
+#     n_chapter_obs[i] = np.sum(np.array(actor_ids[:i]) == chapter_id)
+#     # print(n_actor_obs[i], n_chapter_obs[i])
+#     # print(n_actor_obs, n_chapter_obs)
+#     # add this event id
+#     actor_ids[i], chapter_ids[i] = actor_id, chapter_id
 #
-# hb_cat = np.concatenate(hb_)
-#
-# model_bounds_f
-# fhbs
+# r,p = pearsonr(n_actor_obs, n_new_ctxs)
+# r,p = pearsonr(n_chapter_obs, n_new_ctxs)
+# r,p = pearsonr(n_actor_obs, num_boundaries)
+# r,p = pearsonr(n_chapter_obs, num_boundaries)
+
+
+# evlab.

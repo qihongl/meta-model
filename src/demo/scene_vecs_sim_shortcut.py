@@ -18,6 +18,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from utils import ID2CHAPTER, split_video_id
 from utils import EventLabel, TrainValidSplit, DataLoader, HumanBondaries
+from model import SimpleShortcut
 sns.set(style='white', palette='colorblind', context='talk')
 
 dl = DataLoader()
@@ -78,15 +79,36 @@ X_tr = scene_vecs_s[:n_train_vecs,:]
 X_te = scene_vecs_s[n_train_vecs:,:]
 Y_tr = subev_ids_s[:n_train_vecs]
 Y_te = subev_ids_s[n_train_vecs:]
+n_X_tr = len(X_tr)
 
-# # for i, x in enumerate(tqdm(X_tr)):
-#
-# '''clustering - try what '''
-# k = 45
-# kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
-# clustering_result = kmeans.predict(X_te)
-# mi = mutual_info_score(clustering_result, Y_te)
-#
+'''classification - individual scene vector'''
+unique, counts = np.unique(Y_te, return_counts=True)
+
+majority_guess_baseline = np.max(counts) / len(Y_te)
+uniform_guess_baseline = 1 / evlab.n_evnames
+print(majority_guess_baseline)
+print(uniform_guess_baseline)
+
+# svm = LinearSVC()
+# svm.fit(X_tr, Y_tr)
+# Y_pred = svm.predict(X_te)
+# test_acc = np.mean(Y_pred == Y_te)
+# print('decode sub event - test accuracy %.3f' % test_acc)
+
+''' classification output
+0.0988981909160893
+0.021739130434782608
+decode sub event - test accuracy 0.516
+'''
+
+'''clustering - individual scene vector'''
+
+k = 45
+kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
+clustering_result = kmeans.predict(X_te)
+mi = mutual_info_score(clustering_result, Y_te)
+print(f'mi = {mi}')
+
 # n_perms = 1000
 # mi_perm = [mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
 #
@@ -98,3 +120,46 @@ Y_te = subev_ids_s[n_train_vecs:]
 # # ax.set_xlim([0, 2])
 # ax.legend()
 # sns.despine()
+
+
+def norm_1vec_vs_nvecs(vector, vectors, ord=2):
+    '''compute the distance between 1 vector vs. a bunch of vectors'''
+    assert len(vector) == np.shape(vectors)[1]
+    x_t_rep = np.tile(vector, (np.shape(vectors)[0], 1))
+    return np.linalg.norm(x_t_rep - vectors, axis=1, ord=ord)
+
+f, axes = plt.subplots(2,1,figsize=(9,7))
+ds = [3, 3.5, 4, 4.5, 5, 5.5, 6]
+cpal = sns.color_palette(n_colors=len(ds), palette='viridis')
+for di, d in enumerate(ds):
+    # d = 4
+    ssc = SimpleShortcut(input_dim=30, d=d, use_model=True)
+
+    Y_hats = []
+
+    batch_size = 10000
+    for i in tqdm(np.arange(0, n_X_tr, batch_size)):
+        # print(np.shape(X_tr[i:i+batch_size,:]))
+        ssc.add_data_list(list(X_tr[i:i+batch_size,:]), list(Y_tr[i:i+batch_size]), )
+        ssc.update_model()
+        Y_hats.append([ssc.predict(x) for x in X_te])
+
+
+    mis = np.full(len(Y_hats), fill_value=np.nan)
+    percent_none = np.full(len(Y_hats), fill_value=np.nan)
+    for i, Y_hats_i in enumerate(Y_hats):
+        Y_hats_i = np.array(Y_hats_i)
+        none_mask = Y_hats_i == None
+        percent_none[i] = np.mean(none_mask)
+        if percent_none[i] < 1:
+            mis[i] = mutual_info_score(Y_hats_i[~none_mask], Y_te[~none_mask])
+
+    axes[0].plot(mis, color=cpal[di], label=f'd = {d}')
+    axes[1].plot(percent_none, color=cpal[di])
+axes[0].axhline(mi, ls='--', color='grey', label='KNN baseline')
+axes[0].set_ylabel('mutual infomation')
+axes[0].set_title(f'shortcut MI as the data grows')
+axes[1].set_ylabel('percent null')
+axes[1].set_xlabel('amount of data')
+axes[0].legend()
+sns.despine()

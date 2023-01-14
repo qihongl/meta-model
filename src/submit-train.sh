@@ -7,9 +7,9 @@ for subj_id in {0..2}
 do
   for lr in 1e-3
   do
-    for update_freq in 1 4
+    for update_freq in 4
     do
-      for dim_context in 64 256
+      for dim_context in 128
       do
         for dim_hidden in 16
         do
@@ -17,16 +17,24 @@ do
           do
             for try_reset_h in 0 1
             do
-              sbatch train.sh \
-                   ${subj_id} \
-                   ${lr} \
-                   ${update_freq} \
-                   ${dim_hidden} \
-                   ${dim_context} \
-                   ${ctx_wt} \
-                   ${stickiness} \
-                   ${lik_softmax_beta} \
-                   ${try_reset_h}
+              for use_shortcut in 1
+              do
+                for gen_grad in 4 5 6
+                  do
+                  sbatch train.sh \
+                       ${subj_id} \
+                       ${lr} \
+                       ${update_freq} \
+                       ${dim_hidden} \
+                       ${dim_context} \
+                       ${ctx_wt} \
+                       ${stickiness} \
+                       ${lik_softmax_beta} \
+                       ${try_reset_h} \
+                       ${use_shortcut} \
+                       ${gen_grad}
+                done
+              done
             done
           done
         done

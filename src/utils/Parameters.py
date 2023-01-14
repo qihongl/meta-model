@@ -8,8 +8,10 @@ class Parameters():
         dim_context = 128,
         ctx_wt = .5,
         stickiness = 1,
+        gen_grad = 5,
         lik_softmax_beta=.33,
         try_reset_h=False,
+        use_shortcut=False,
         lr = 1e-3,
         update_freq = 10,
         subj_id = 0,
@@ -35,13 +37,16 @@ class Parameters():
         self.stickiness = stickiness
         self.lik_softmax_beta = lik_softmax_beta
         self.try_reset_h = try_reset_h
+        # short cut param
+        self.use_shortcut = use_shortcut
+        self.gen_grad = gen_grad
         # training param
         self.lr = lr
         self.update_freq = update_freq
         self.subj_id = subj_id
         # sub_dirs
         self.log_root = log_root
-        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
         self.result_dir = os.path.join(self.log_root, sub_dirs, 'result')
