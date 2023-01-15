@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 70:55:00
+#SBATCH -t 23:55:00
 #SBATCH -c 1
 #SBATCH --mem-per-cpu 8G
 
@@ -7,6 +7,7 @@
 #SBATCH --output slurm_log/%j.log
 
 LOGROOT=/tigress/qlu/logs/meta-model/log
+DT=$(date +%Y-%m-%d)
 
 echo $(date)
 
@@ -22,6 +23,7 @@ srun python -u train.py \
     --try_reset_h ${9} \
     --use_shortcut ${10} \
     --gen_grad ${11} \
+    --exp_name $DT \
     --log_root $LOGROOT
 
 echo $(date)

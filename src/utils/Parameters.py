@@ -19,6 +19,7 @@ class Parameters():
         dim_output = 30,
         verbose=True,
         log_root = '../log',
+        exp_name = 'testing',
         dont_make_dir=False,
     ):
         assert dim_hidden > 0 and dim_input > 0 and dim_output > 0
@@ -45,8 +46,9 @@ class Parameters():
         self.update_freq = update_freq
         self.subj_id = subj_id
         # sub_dirs
+        self.exp_name = exp_name
         self.log_root = log_root
-        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        sub_dirs = f'{exp_name}/dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
         self.result_dir = os.path.join(self.log_root, sub_dirs, 'result')

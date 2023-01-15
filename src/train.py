@@ -13,13 +13,17 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
+from sklearn.metrics import confusion_matrix
+from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
 from model import SimpleContext, SimpleShortcut
-from utils import to_np, to_pth, split_video_id, context_to_bound_vec, loss_to_bound_vec, save_ckpt, padded_corr, pickle_save, get_point_biserial, compute_stats
-from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import ID2CHAPTER
-from scipy.stats import pointbiserialr, pearsonr
+from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
+from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \
+    loss_to_bound_vec, save_ckpt, padded_corr, pickle_save, pickle_load, \
+    get_point_biserial, compute_stats
+
 sns.set(style='white', palette='colorblind', context='talk')
 
 '''e.g.
@@ -28,17 +32,18 @@ sbatch train.sh 99 1e-3 10 16 256 .5 .5 .5
 '''
 matplotlib.use('Agg')
 parser = argparse.ArgumentParser()
-parser.add_argument('--subj_id', default=99, type=int)
+parser.add_argument('--subj_id', default=0, type=int)
 parser.add_argument('--lr', default=1e-3, type=float)
-parser.add_argument('--update_freq', default=64, type=int)
+parser.add_argument('--update_freq', default=4, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
 parser.add_argument('--dim_context', default=128, type=int)
 parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
-parser.add_argument('--stickiness', default=1, type=float)
+parser.add_argument('--stickiness', default=1.5, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
+parser.add_argument('--exp_name', default='testing', type=str)
 parser.add_argument('--log_root', default='../log', type=str)
 args = parser.parse_args()
 print(args)
@@ -57,22 +62,24 @@ ctx_wt = args.ctx_wt
 stickiness = args.stickiness
 lik_softmax_beta = args.lik_softmax_beta
 try_reset_h = bool(args.try_reset_h)
+exp_name = args.exp_name
 log_root = args.log_root
 
 # # training param
+# exp_name = 'testing'
 # subj_id = 0
 # lr = 1e-3
-# update_freq = 64
+# update_freq = 4
 # # model param
 # dim_hidden = 16
 # dim_context = 128
 # ctx_wt = .5
 # # ctx_wt = 0
-# use_shortcut = 1
-# gen_grad = 5
-# stickiness = 1.25
+# use_shortcut = True
+# gen_grad = 4.0
+# stickiness = 2.0
 # lik_softmax_beta = .33
-# try_reset_h = 1
+# try_reset_h = False
 # log_root = '../log'
 
 # set seed
@@ -88,7 +95,7 @@ p = Parameters(
     stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
     subj_id = subj_id, lik_softmax_beta=lik_softmax_beta,
     try_reset_h = try_reset_h, use_shortcut=use_shortcut,
-    log_root=log_root,
+    log_root=log_root, exp_name=exp_name
 )
 # init model
 agent = Agent(
@@ -180,6 +187,19 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = run_model(tvs.train_ids, p=p, train_mode=True)
 log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = run_model(tvs.valid_ids, p=p, train_mode=False)
 
+'''
+def load_data(train_mode):
+    result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
+    result_dict = pickle_load(result_fname)
+    log_cid_fi_ = result_dict['log_cid_fi']
+    log_cid_sc_ = result_dict['log_cid_sc']
+    loss_by_events_ = result_dict['loss_by_events']
+    log_reset_h_ = result_dict['log_reset_h']
+    return log_cid_fi_, log_cid_sc_, loss_by_events_, log_reset_h_
+
+log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = load_data(True)
+log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = load_data(False)
+'''
 
 '''plot the data '''
 # plot loss by valid event
@@ -283,12 +303,14 @@ model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
 event_id_list = tvs.valid_ids
 t_f1 = dl.get_1st_frame_ids(event_id_list)
 for i, event_id in enumerate(event_id_list):
+    # if i == 0: break
     actor_id, chapter_id, run_id = split_video_id(event_id)
     chb = hb.get_bound_prob(event_id_list[i], 'coarse')
     fhb = hb.get_bound_prob(event_id_list[i], 'fine')
     # get model bounds
+    len(log_reset_h_te[i])
+    # len(log_cid_fi_te[i])
     model_ctx_bound_vec = context_to_bound_vec(log_cid_fi_te[i])
-    model_ctx_bound_loc = np.where(model_ctx_bound_vec)[0]
     model_loss_bound_vec = loss_to_bound_vec(loss_by_events_te[i], model_ctx_bound_vec)
     # get the true event label
     event_bound_times, event_bound_vec = evlab.get_bounds(event_id_list[i])
@@ -297,6 +319,8 @@ for i, event_id in enumerate(event_id_list):
     pad_l = int(t_f1[i] * 3)
     model_ctx_bound_vec = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec])
     model_loss_bound_vec = np.concatenate([np.zeros(pad_l), model_loss_bound_vec])
+    reset_h_vec = np.concatenate([np.zeros(pad_l), log_reset_h_te[i]])
+
     # if the model data is longer, trim the human data
     chb = chb[:len(model_ctx_bound_vec)]
     fhb = fhb[:len(model_ctx_bound_vec)]
@@ -305,6 +329,12 @@ for i, event_id in enumerate(event_id_list):
     model_ctx_bound_vec_f = model_ctx_bound_vec[:len(fhb)]
     model_loss_bound_vec_c = model_loss_bound_vec[:len(chb)]
     model_loss_bound_vec_f = model_loss_bound_vec[:len(fhb)]
+    reset_h_vec_c = reset_h_vec[:len(chb)]
+    reset_h_vec_f = reset_h_vec[:len(fhb)]
+    model_ctx_bound_loc_c = np.where(model_ctx_bound_vec_c)[0]
+    model_ctx_bound_loc_f = np.where(model_ctx_bound_vec_f)[0]
+    reset_h_loc_c = np.where(reset_h_vec_c)[0]
+    reset_h_loc_f = np.where(reset_h_vec_f)[0]
 
     # compute corr
     r_m_crse[i], _ = get_point_biserial(model_ctx_bound_vec_c, chb)
@@ -319,17 +349,27 @@ for i, event_id in enumerate(event_id_list):
 
     '''plot this event'''
     alpha = .75
-    f, ax = plt.subplots(1,1, figsize=(12,4))
-    ax.set_xlabel('Time unit (X)')
-    ax.set_title(f'{event_id} (actor: {actor_id}, chapter: {ID2CHAPTER[chapter_id]}, run: {run_id}) \n correlation with corase/fine boundaries = %.3f / %.3f' % (r_m_crse[i], r_m_fine[i]))
-
-    for j, mb in enumerate(model_ctx_bound_loc):
+    f, axes = plt.subplots(2, 1, figsize=(12, 9))
+    axes[1].set_xlabel('Time unit (X)')
+    f.suptitle(f'{event_id} (actor: {actor_id}, chapter: {ID2CHAPTER[chapter_id]}, run: {run_id})')
+    for j, mb in enumerate(model_ctx_bound_loc_c):
         label = 'model bound' if j == 0 else None
-        ax.axvline(mb, ls='--', color='grey', label=label)
-    ax.plot(chb, label='coarse bounds', alpha=alpha)
-    ax.plot(fhb, label='fine bounds', alpha=alpha)
-    ax.legend()
+        color = 'black' if mb in reset_h_loc_c else 'grey'
+        axes[0].axvline(mb, ls='--', color=color, label=label)
+    axes[0].plot(chb, label='coarse bounds', alpha=alpha)
+    for j, mb in enumerate(model_ctx_bound_loc_f):
+        label = 'model bound' if j == 0 else None
+        color = 'black' if mb in reset_h_loc_f else 'grey'
+        axes[1].axvline(mb, ls='--', color=color, label=label)
+    axes[1].plot(fhb, label='fine bounds', alpha=alpha)
+    axes[0].legend()
+    axes[1].legend()
+    axes[0].set_ylabel('p')
+    axes[1].set_ylabel('p')
+    axes[0].set_title(f'mean correlation = %.3f' % (r_m_crse[i]))
+    axes[1].set_title(f'mean correlation = %.3f' % (r_m_fine[i]))
     sns.despine()
+    f.tight_layout()
     fig_path = os.path.join(p.fig_dir, f'event-{event_id}-mb-vs-hb.png')
     f.savefig(fig_path, dpi=100)
 
@@ -368,13 +408,24 @@ f.savefig(fig_path, dpi=100)
 
 # compute shortcut accuracy over time
 sc_acc_tr, sc_acc_te = [], []
+# plt.plot(log_cid_fi_tr_i)
+# plt.plot(log_cid_sc_tr_i)
+# plt.plot(log_cid_fi_tr_i == log_cid_sc_tr_i)
 for i, (log_cid_fi_tr_i, log_cid_sc_tr_i) in enumerate(zip(log_cid_fi_tr, log_cid_sc_tr)):
+    # if i == 0: break
     sc_acc_tr.append(np.mean(log_cid_fi_tr_i == log_cid_sc_tr_i))
 for i, (log_cid_fi_te_i, log_cid_sc_te_i) in enumerate(zip(log_cid_fi_te, log_cid_sc_te)):
     sc_acc_te.append(np.mean(log_cid_fi_te_i == log_cid_sc_te_i))
 
 sc_acc_tr_mu, sc_acc_tr_se = compute_stats(sc_acc_tr)
 sc_acc_te_mu, sc_acc_te_se = compute_stats(sc_acc_te)
+# compute precent null
+percent_sc_null_tr = [np.isnan(x).sum() / len(x) for x in log_cid_sc_tr]
+percent_sc_null_te = [np.isnan(x).sum() / len(x) for x in log_cid_sc_te]
+
+sc_pnull_tr_mu, sc_pnull_tr_se = compute_stats(percent_sc_null_tr)
+sc_pnull_te_mu, sc_pnull_te_se = compute_stats(percent_sc_null_te)
+
 f, axes = plt.subplots(1,2, figsize=(10,4), sharey=True)
 axes[0].plot(sc_acc_tr)
 axes[1].plot(sc_acc_te)
@@ -385,20 +436,52 @@ axes[1].set_xlabel('validation videos')
 axes[0].set_title('mean = %.2f' % np.mean(sc_acc_tr_mu))
 axes[1].set_title('mean = %.2f' % np.mean(sc_acc_te_mu))
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'shortcut-acc.png')
+fig_path = os.path.join(p.fig_dir, f'sc-acc.png')
+f.savefig(fig_path, dpi=100)
+
+width = .7
+f, ax = plt.subplots(1,1, figsize=(4.5, 4))
+xticks = range(2)
+ax.bar(x=xticks, width=width, height=[sc_acc_tr_mu, sc_acc_te_mu], yerr=[sc_acc_tr_se, sc_acc_te_se], label='match with full inference')
+ax.bar(x=xticks, width=width, height=[sc_pnull_tr_mu, sc_pnull_te_mu], yerr=[sc_pnull_tr_se, sc_pnull_te_se], bottom=[sc_acc_tr_mu, sc_acc_te_mu], label='null response')
+ax.set_xticks(xticks)
+ax.set_xticklabels(['train', 'validation'])
+ax.set_title('short cut performance')
+ax.set_ylabel('%')
+ax.set_ylim([0,1])
+ax.legend()
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'sc-bar.png')
 f.savefig(fig_path, dpi=100)
 
 f, ax = plt.subplots(1,1, figsize=(5,4))
-xticks = range(2)
-ax.bar(x=xticks, height=[sc_acc_tr_mu, sc_acc_te_mu], yerr=[sc_acc_tr_se, sc_acc_te_se])
-ax.set_xticks(xticks)
-ax.set_xticklabels(['train', 'validation'])
-ax.set_title('% match shortcut vs. full inference')
-ax.set_ylabel('% match')
-ax.set_ylim([0,1])
+ax.plot(percent_sc_null)
+ax.set_ylabel('% null')
+ax.set_xlabel('video id')
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'shortcut-acc-bar.png')
+fig_path = os.path.join(p.fig_dir, f'sc-null.png')
 f.savefig(fig_path, dpi=100)
+
+log_cid_sc_cat = np.concatenate(log_cid_sc_tr+log_cid_sc_te)
+log_cid_fi_cat = np.concatenate(log_cid_fi_tr+log_cid_fi_te)
+log_cid_sc_cat[np.isnan(log_cid_sc_cat)] = -1
+cfmat = confusion_matrix(log_cid_fi_cat, log_cid_sc_cat, normalize='true')
+
+f, ax = plt.subplots(1,1, figsize=(12,10))
+sns.heatmap(cfmat, cmap='viridis', square=True)
+ax.set_xlabel('context id, shortcut')
+ax.set_ylabel('context id, full inference')
+fig_path = os.path.join(p.fig_dir, f'sc-confusion-mat.png')
+f.savefig(fig_path, dpi=100)
+
+f, ax = plt.subplots(1,1, figsize=(5,4))
+ax.plot(np.diag(cfmat))
+ax.set_ylabel('% match between shortcut vs full inference')
+ax.set_xlabel('context id')
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'sc-confusion-mat-diag.png')
+f.savefig(fig_path, dpi=100)
+
 
 '''more segs if new actor or new chapter? - NO '''
 # boundaries vs. k-th time seeing an chapter/actor
