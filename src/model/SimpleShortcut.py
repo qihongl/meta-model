@@ -2,7 +2,8 @@
 a shortcut for predicting the context
 """
 import numpy as np
-
+NULL_RESPONSE = -1
+# NULL_RESPONSE = None
 
 class SimpleShortcut():
 
@@ -58,23 +59,23 @@ class SimpleShortcut():
             return self.instance_based_predict(x_t)
 
     def instance_based_predict(self, x_t):
-        if len(self.Y) == 0: 
-            return None
+        if len(self.Y) == 0:
+            return NULL_RESPONSE
         distances = norm_1vec_vs_nvecs(x_t, self.X)
         closest_d_i = np.argmin(distances)
         # if the min dist cluster is closer than d, return its id
         if distances[closest_d_i] < self.d:
             return self.Y[closest_d_i]
-        return None
+        return NULL_RESPONSE
 
     def cluster_based_predict(self, x_t):
         if len(ssc.model) == 0:
-            return None
+            return NULL_RESPONSE
         cluster_ids = self.get_cluster_ids()
         distances = norm_1vec_vs_nvecs(x_t, self.get_cluster_centers())
         closest_d_i = np.argmin(distances)
         if distances[closest_d_i] > self.d:
-            return None
+            return NULL_RESPONSE
         return cluster_ids[closest_d_i]
 
 

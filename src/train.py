@@ -21,8 +21,8 @@ from model import SimpleContext, SimpleShortcut
 from utils import ID2CHAPTER
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \
-    loss_to_bound_vec, save_ckpt, padded_corr, pickle_save, pickle_load, \
-    get_point_biserial, compute_stats
+    loss_to_bound_vec, save_ckpt, pickle_save, pickle_load, compute_stats, \
+    get_point_biserial
 
 sns.set(style='white', palette='colorblind', context='talk')
 
@@ -66,17 +66,17 @@ exp_name = args.exp_name
 log_root = args.log_root
 
 # # training param
-# exp_name = 'testing'
+# exp_name = '2023-01-15'
 # subj_id = 0
 # lr = 1e-3
 # update_freq = 4
 # # model param
 # dim_hidden = 16
-# dim_context = 128
+# dim_context = 256
 # ctx_wt = .5
 # # ctx_wt = 0
 # use_shortcut = True
-# gen_grad = 4.0
+# gen_grad = 3.0
 # stickiness = 2.0
 # lik_softmax_beta = .33
 # try_reset_h = False
@@ -97,6 +97,22 @@ p = Parameters(
     try_reset_h = try_reset_h, use_shortcut=use_shortcut,
     log_root=log_root, exp_name=exp_name
 )
+
+
+'''
+def load_data(train_mode):
+    result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
+    result_dict = pickle_load(result_fname)
+    log_cid_fi_ = result_dict['log_cid_fi']
+    log_cid_sc_ = result_dict['log_cid_sc']
+    loss_by_events_ = result_dict['loss_by_events']
+    log_reset_h_ = result_dict['log_reset_h']
+    return log_cid_fi_, log_cid_sc_, loss_by_events_, log_reset_h_
+
+log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = load_data(True)
+log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = load_data(False)
+'''
+
 # init model
 agent = Agent(
     p.dim_input, p.dim_hidden, p.dim_output,
@@ -137,18 +153,20 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
         T = len(X) - 1
         # prealloc
-        log_cid_fi_i, log_cid_sc_i = np.zeros(T, ), np.zeros(T, )
+        log_cid_fi_i, log_cid_sc_i = np.zeros(T, dtype=int), np.zeros(T, dtype=int)
         log_reset_h_i = np.zeros(T, )
         # run the model over time
         loss = 0
         h_t = agent.get_init_states()
         for t in tqdm(range(T)):
-            # context - full inference
-            lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-            log_cid_fi_i[t], c_vec, log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
-            h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
             # short cut inference
             log_cid_sc_i[t] = ssc.predict(to_np(X[t]))
+            # context - full inference
+            lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
+            log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
+            c_vec = sc.context[log_cid_fi_i[t]]
+            h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
+            # add full inference result to the shortcut
             ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
@@ -187,19 +205,6 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = run_model(tvs.train_ids, p=p, train_mode=True)
 log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = run_model(tvs.valid_ids, p=p, train_mode=False)
 
-'''
-def load_data(train_mode):
-    result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
-    result_dict = pickle_load(result_fname)
-    log_cid_fi_ = result_dict['log_cid_fi']
-    log_cid_sc_ = result_dict['log_cid_sc']
-    loss_by_events_ = result_dict['loss_by_events']
-    log_reset_h_ = result_dict['log_reset_h']
-    return log_cid_fi_, log_cid_sc_, loss_by_events_, log_reset_h_
-
-log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = load_data(True)
-log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = load_data(False)
-'''
 
 '''plot the data '''
 # plot loss by valid event
@@ -211,7 +216,7 @@ ax.set_xlabel('validation video id')
 ax.set_ylabel('loss')
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'final-loss-by-event.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
 def num_boundaries_per_event(log_cid_):
@@ -231,7 +236,7 @@ ax.set_xlabel('# boundaries')
 ax.legend()
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'distribution-n-bounds.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 # plot n context over time
 def compute_n_ctx_over_time(log_cid_):
@@ -244,14 +249,51 @@ def compute_n_ctx_over_time(log_cid_):
             max_ctx_by_events[i] = max_ctx_so_far
     return max_ctx_by_events
 
-n_ctx_over_time = compute_n_ctx_over_time(log_cid_fi_tr)
+log_cid_fi = log_cid_fi_tr + log_cid_fi_te
+n_ctx_over_time = compute_n_ctx_over_time(log_cid_fi)
 f, ax = plt.subplots(1,1, figsize=(5,4))
 ax.plot(n_ctx_over_time)
 ax.set_xlabel('training video id')
 ax.set_ylabel('# of contexts inferred')
+ax.axvline(len(log_cid_fi_tr), label='start testing', ls='--', color='grey')
+ax.legend()
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-n-ctx-over-training.png')
-f.savefig(fig_path, dpi=100)
+fig_path = os.path.join(p.fig_dir, f'ctx-num-over-training.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+
+# are the context being used?
+
+n_ctx = int(n_ctx_over_time[-1])+1
+ctx_usage = np.zeros((tvs.n_files, n_ctx))
+
+for i in range(tvs.n_files):
+    ctx_used, counts = np.unique(log_cid_fi[i], return_counts=True)
+    for ctx_id_i, count_i in zip(ctx_used, counts):
+        ctx_usage[i, int(ctx_id_i)] += count_i
+
+f, ax = plt.subplots(1,1, figsize=(12, 10))
+sns.heatmap(ctx_usage, cmap='viridis', ax=ax)
+ax.set_ylabel('video id (during learning)')
+ax.set_xlabel('inferred context id')
+ax.set_title('context use during learning')
+fig_path = os.path.join(p.fig_dir, f'ctx-use.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+low_use_threshold = 5
+low_use_ctx = []
+f, ax = plt.subplots(1,1, figsize=(14, 6))
+for i in np.arange(1, n_ctx):
+    if np.sum(ctx_usage[tvs.n_train_files:,i]) < low_use_threshold:
+        ax.plot(ctx_usage[:,i], label = i)
+        low_use_ctx.append(i)
+ax.set_ylabel('# time points')
+ax.set_title(f'barely used (used less than {low_use_threshold} time points) context during test')
+ax.set_xlabel('video id (during learning)')
+ax.legend()
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'ctx-barely-used.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
 # plot average event duration
@@ -288,10 +330,10 @@ event_len_tr = get_event_len(log_cid_fi_tr)
 event_len_te = get_event_len(log_cid_fi_te)
 f, ax = plot_event_len_distribution(event_len_tr)
 fig_path = os.path.join(p.fig_dir, f'len-event-train.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 f, ax = plot_event_len_distribution(event_len_te)
 fig_path = os.path.join(p.fig_dir, f'len-event-test.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 '''correlation with human boundaries'''
 
@@ -371,7 +413,25 @@ for i, event_id in enumerate(event_id_list):
     sns.despine()
     f.tight_layout()
     fig_path = os.path.join(p.fig_dir, f'event-{event_id}-mb-vs-hb.png')
-    f.savefig(fig_path, dpi=100)
+    f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+
+# def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 50):
+#     r, _ = get_point_biserial(
+#         np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+#     )
+#     r_perm = np.zeros(n_perms, )
+#     for i in range(n_perms):
+#         random.shuffle(model_bounds_list)
+#         r_perm[i], _ = get_point_biserial(
+#             np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+#         )
+#     return r, r_perm
+#
+# r, r_perm = compute_corr_with_perm(model_bounds_c, chbs, n_perms = 50)
+# print(r, r_perm)
+# r, r_perm = compute_corr_with_perm(model_bounds_f, fhbs, n_perms = 50)
+# print(r, r_perm)
 
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
@@ -388,7 +448,7 @@ axes[1].set_ylabel('Fine')
 f.tight_layout()
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'final-r-mode-vs-human-bounds.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
 sns.violinplot(r_l_crse, ax=axes[0])
@@ -396,15 +456,15 @@ sns.violinplot(r_l_fine, ax=axes[1])
 for ax in axes:
     ax.axvline(0, ls='--', c='grey', label='0', zorder=-1)
     ax.legend()
-axes[0].set_title(f'mean r = %.3f' % (r_l_crse.mean()))
-axes[1].set_title(f'mean r = %.3f' % (r_l_fine.mean()))
+axes[0].set_title(f'mean r = %.3f' % (np.nanmean(r_l_crse)))
+axes[1].set_title(f'mean r = %.3f' % (np.nanmean(r_l_fine)))
 axes[1].set_xlabel('Point biserial correlation')
 axes[0].set_ylabel('Coarse')
 axes[1].set_ylabel('Fine')
 f.tight_layout()
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'final-r-loss-vs-human-bounds.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 # compute shortcut accuracy over time
 sc_acc_tr, sc_acc_te = [], []
@@ -420,8 +480,8 @@ for i, (log_cid_fi_te_i, log_cid_sc_te_i) in enumerate(zip(log_cid_fi_te, log_ci
 sc_acc_tr_mu, sc_acc_tr_se = compute_stats(sc_acc_tr)
 sc_acc_te_mu, sc_acc_te_se = compute_stats(sc_acc_te)
 # compute precent null
-percent_sc_null_tr = [np.isnan(x).sum() / len(x) for x in log_cid_sc_tr]
-percent_sc_null_te = [np.isnan(x).sum() / len(x) for x in log_cid_sc_te]
+percent_sc_null_tr = [x == -1 / len(x) for x in log_cid_sc_tr]
+percent_sc_null_te = [x == -1 / len(x) for x in log_cid_sc_te]
 
 sc_pnull_tr_mu, sc_pnull_tr_se = compute_stats(percent_sc_null_tr)
 sc_pnull_te_mu, sc_pnull_te_se = compute_stats(percent_sc_null_te)
@@ -437,7 +497,7 @@ axes[0].set_title('mean = %.2f' % np.mean(sc_acc_tr_mu))
 axes[1].set_title('mean = %.2f' % np.mean(sc_acc_te_mu))
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'sc-acc.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 f, ax = plt.subplots(1,1, figsize=(5,4))
 ax.plot(percent_sc_null_tr + percent_sc_null_te)
@@ -445,7 +505,7 @@ ax.set_ylabel('% null')
 ax.set_xlabel('video id')
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'sc-null.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 width = .7
 f, ax = plt.subplots(1,1, figsize=(4.5, 4))
@@ -460,7 +520,8 @@ ax.set_ylim([0,1])
 ax.legend()
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'sc-bar.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
 
 log_cid_sc_cat = np.concatenate(log_cid_sc_tr+log_cid_sc_te)
 log_cid_fi_cat = np.concatenate(log_cid_fi_tr+log_cid_fi_te)
@@ -472,7 +533,7 @@ sns.heatmap(cfmat, cmap='viridis', square=True)
 ax.set_xlabel('context id, shortcut')
 ax.set_ylabel('context id, full inference')
 fig_path = os.path.join(p.fig_dir, f'sc-confusion-mat.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 f, ax = plt.subplots(1,1, figsize=(5,4))
 ax.plot(np.diag(cfmat))
@@ -480,7 +541,7 @@ ax.set_ylabel('% match between shortcut vs full inference')
 ax.set_xlabel('context id')
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'sc-confusion-mat-diag.png')
-f.savefig(fig_path, dpi=100)
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
 '''more segs if new actor or new chapter? - NO '''
@@ -514,3 +575,5 @@ f.savefig(fig_path, dpi=100)
 
 
 # evlab.
+'''permutation and MI'''
+evlab

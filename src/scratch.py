@@ -81,8 +81,34 @@ are all videos in Full_SEM?
 
 import pickle
 import numpy as np
+import random
+from utils import get_point_biserial
+# from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \
+#     loss_to_bound_vec, save_ckpt, pickle_save, pickle_load, compute_stats, \
+
+
 a = dict({'hello': 'world', 'a': [np.zeros(3,), np.ones(4)]})
 
 pickle_save(a, 'filename.pickle')
 b = pickle_load('filename.pickle')
 print(a == b)
+
+
+n_events = 3
+event_lens = [int(np.random.uniform(10, 30)) for _ in range(n_events)]
+
+phuman_bounds_list = [np.random.uniform(size=(l,)) for l in event_lens]
+model_bounds_list = [np.array(chbs_i > .8, dtype=np.float) for chbs_i in phuman_bounds_list]
+
+
+def compute_corr_with_perm(n_perms = 50):
+    r, _ = get_point_biserial(
+        np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+    )
+    r_perm = np.zeros(n_perms, )
+    for i in range(n_perms):
+        random.shuffle(model_bounds_list)
+        r_perm[i], _ = get_point_biserial(
+            np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+        )
+    return r, r_perm

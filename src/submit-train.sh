@@ -7,19 +7,19 @@ for subj_id in {0..2}
 do
   for lr in 1e-3
   do
-    for update_freq in 4 32
+    for update_freq in 4
     do
       for dim_context in 256
       do
         for dim_hidden in 16
         do
-          for stickiness in 2 3
+          for stickiness in 2 4 8
           do
             for try_reset_h in 0 1
             do
               for use_shortcut in 1
               do
-                for gen_grad in 3 5 7
+                for gen_grad in 2 5 9
                   do
                   sbatch train.sh \
                        ${subj_id} \

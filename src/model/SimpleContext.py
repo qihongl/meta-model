@@ -53,11 +53,12 @@ class SimpleContext():
         return self.n_context, new_context
 
     def compute_posterior(self, likelihood, verbose=False):
-        # # +1 because there is the novel context
-        # n_total_contexts = self.n_context + 1
         sticky_uniform_vec = np.ones(len(likelihood),)
         if self.prev_cluster_id is not None:
             sticky_uniform_vec[self.prev_cluster_id] += self.stickiness
+            # if try reset h then the last dim is the resetted context 
+            if self.try_reset_h:
+                sticky_uniform_vec[-1] += self.stickiness
         prior = sticky_uniform_vec / np.sum(sticky_uniform_vec)
         if verbose:
             print('prior = ', prior)
@@ -77,19 +78,19 @@ class SimpleContext():
                 print(f'lik: {likelihood}\nposterior: {posterior}')
         elif self.try_reset_h and max_pos_cid == len(likelihood) - 1: # if it is the last index
             max_pos_cid = self.prev_cluster_id
-            max_pos_cvec = self.context[self.prev_cluster_id]
+            # max_pos_cvec = self.context[self.prev_cluster_id]
             reset_h = True
             if verbose >= 1:
                 print(f'restart the {max_pos_cid}-th context!')
             if verbose >= 2:
                 print(f'lik: {likelihood}\nposterior: {posterior}')
         else:
-            max_pos_cvec = self.context[max_pos_cid]
+            # max_pos_cvec = self.context[max_pos_cid]
             if verbose >= 2:
                 print(f'posterior: {posterior} \t reusing {max_pos_cid}-th context!')
         # update the previous context
         self.prev_cluster_id = max_pos_cid
-        return max_pos_cid, max_pos_cvec, reset_h
+        return max_pos_cid, reset_h
 
     def prev_ctx(self):
         return self.context[self.prev_cluster_id]
