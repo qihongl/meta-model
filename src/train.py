@@ -282,13 +282,14 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 low_use_threshold = 5
 low_use_ctx = []
+n_ctx_tr = int(compute_n_ctx_over_time(log_cid_fi_tr)[-1])
 f, ax = plt.subplots(1,1, figsize=(14, 6))
-for i in np.arange(1, n_ctx):
+for i in np.arange(1, n_ctx_tr):
     if np.sum(ctx_usage[tvs.n_train_files:,i]) < low_use_threshold:
         ax.plot(ctx_usage[:,i], label = i)
         low_use_ctx.append(i)
 ax.set_ylabel('# time points')
-ax.set_title(f'barely used (used less than {low_use_threshold} time points) context during test')
+ax.set_title(f'contexts that are barely used during test (used less than {low_use_threshold} time points) ')
 ax.set_xlabel('video id (during learning)')
 ax.legend()
 sns.despine()
