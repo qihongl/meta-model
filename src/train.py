@@ -4,6 +4,7 @@ import glob
 import time
 import pickle
 import torch
+import random
 import argparse
 import matplotlib
 import torch.nn as nn
@@ -17,7 +18,7 @@ from sklearn.metrics import confusion_matrix
 from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
-from model import SimpleContext, SimpleShortcut
+from model import SimpleContext, SimpleShortcut, SimpleTracker
 from utils import ID2CHAPTER
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \
@@ -43,6 +44,9 @@ parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--stickiness', default=1.5, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
+parser.add_argument('--pe_tracker_size', default=256, type=int)
+parser.add_argument('--match_tracker_size', default=8, type=int)
+parser.add_argument('--n_pe_std', default=2, type=int)
 parser.add_argument('--exp_name', default='testing', type=str)
 parser.add_argument('--log_root', default='../log', type=str)
 args = parser.parse_args()
@@ -62,25 +66,35 @@ ctx_wt = args.ctx_wt
 stickiness = args.stickiness
 lik_softmax_beta = args.lik_softmax_beta
 try_reset_h = bool(args.try_reset_h)
+pe_tracker_size = args.pe_tracker_size
+match_tracker_size = args.match_tracker_size
+n_pe_std = args.n_pe_std
 exp_name = args.exp_name
 log_root = args.log_root
 
 # # training param
-# exp_name = '2023-01-15'
+# # exp_name = '2023-01-18'
+# exp_name = 'testing'
+# log_root = '../log'
 # subj_id = 0
+# #
 # lr = 1e-3
-# update_freq = 4
+# update_freq = 32
 # # model param
 # dim_hidden = 16
-# dim_context = 256
-# ctx_wt = .5
-# # ctx_wt = 0
+# dim_context = 64
+# # shortcut params
 # use_shortcut = True
 # gen_grad = 3.0
+# # full inference param
+# ctx_wt = .5
 # stickiness = 2.0
 # lik_softmax_beta = .33
 # try_reset_h = False
-# log_root = '../log'
+# # handoff param
+# pe_tracker_size = 256
+# match_tracker_size = 8
+# n_pe_std = 2
 
 # set seed
 np.random.seed(subj_id)
@@ -95,6 +109,7 @@ p = Parameters(
     stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
     subj_id = subj_id, lik_softmax_beta=lik_softmax_beta,
     try_reset_h = try_reset_h, use_shortcut=use_shortcut,
+    pe_tracker_size = pe_tracker_size, match_tracker_size = match_tracker_size, n_pe_std= n_pe_std,
     log_root=log_root, exp_name=exp_name
 )
 
@@ -126,6 +141,9 @@ c_id, c_vec = sc.init_context()
 # init the shortcut
 ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad)
 
+pe_tracker = SimpleTracker(size=pe_tracker_size)
+match_tracker = SimpleTracker(size=match_tracker_size)
+
 '''train the model'''
 
 def run_model(event_id_list, p, train_mode, save_freq=10):
@@ -138,9 +156,13 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
     # prealooc
     loss_by_events = [[] for _ in range(len(event_id_list))]
+    log_cid = [[] for _ in range(len(event_id_list))]
     log_cid_fi = [[] for _ in range(len(event_id_list))]
     log_cid_sc = [[] for _ in range(len(event_id_list))]
     log_reset_h = [[] for _ in range(len(event_id_list))]
+    log_use_sc = [[] for _ in range(len(event_id_list))]
+    log_pe_peak = [[] for _ in range(len(event_id_list))]
+
     permed_order = np.random.permutation(range(len(event_id_list)))
     for i, pi in enumerate(permed_order):
         event_id = event_id_list[pi]
@@ -153,8 +175,13 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
         T = len(X) - 1
         # prealloc
-        log_cid_fi_i, log_cid_sc_i = np.zeros(T, dtype=int), np.zeros(T, dtype=int)
+        log_cid_fi_i = np.zeros(T, dtype=int)
+        log_cid_sc_i = np.zeros(T, dtype=int)
+        log_cid_i = np.zeros(T, dtype=int)
         log_reset_h_i = np.zeros(T, )
+        log_use_sc_i = np.zeros(T, )
+        log_pe_peak_i = np.zeros(T, )
+
         # run the model over time
         loss = 0
         h_t = agent.get_init_states()
@@ -164,16 +191,36 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             # context - full inference
             lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
             log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
-            c_vec = sc.context[log_cid_fi_i[t]]
-            h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
-            # add full inference result to the shortcut
-            ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
+            # log if shortcut = full inf; and decide whether to use full inference or the shortcut
+            match_it = log_cid_fi_i[t] == log_cid_sc_i[t]
+            log_use_sc_i[t] = match_tracker.use_shortcut_t(log_cid_sc_i[t])
+            if use_shortcut and log_use_sc_i[t]:
+                log_cid_i[t] = log_cid_sc_i[t]
+                # print(f'use short cut on ctx {log_cid_sc_i[t]}')
+            else:
+                # if use full inference, add experience to the shortcut buffer
+                log_cid_i[t] = log_cid_fi_i[t]
+                h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
+                ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
+                match_tracker.add(log_cid_sc_i[t], match_it)
             # forward
+            c_vec = sc.context[log_cid_i[t]]
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
             loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
             loss += loss_it
             loss_by_events[i].append(loss_it.clone().detach())
+
+            # if use shortcut, decide whether to turn off shortcut based on PE
+            if use_shortcut and log_use_sc_i[t]:
+                if pe_tracker.peaked(log_cid_sc_i[t], n_pe_std, to_np(loss_it)):
+                    # use_shortcut_t = False
+                    match_tracker.reinit_ctx_buffer(log_cid_sc_i[t])
+                    log_pe_peak_i[t] = True
+                    # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut, turn off ctx {log_cid_sc_i[t]}')
+            else:
+                # if use full inference, record full inf PE as the baseline
+                pe_tracker.add(log_cid_fi_i[t], to_np(loss_it))
 
             # update weights for every other t time points
             if learning and t % update_freq == 0:
@@ -181,30 +228,38 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 loss.backward(retain_graph=True)
                 optimizer.step()
         ssc.update_model()
+        log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
         log_cid_sc[i] = log_cid_sc_i
         log_reset_h[i] = log_reset_h_i
+        log_use_sc[i] = log_use_sc_i
+        log_pe_peak[i] = log_pe_peak_i
+
         print('Time elapsed = %.2f sec' % (time.time() - t_start))
     # save the final weights
     if save_weights:
         save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
 
     result_dict = {
+        'log_cid': log_cid,
         'log_cid_fi' : log_cid_fi,
         'log_cid_sc' : log_cid_sc,
         'loss_by_events' : loss_by_events,
         'log_reset_h' : log_reset_h,
+        'log_use_sc' : log_use_sc,
+        'log_pe_peak' : log_pe_peak,
     }
     result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
     pickle_save(result_dict, result_fname)
     print('done')
-    return log_cid_fi, log_cid_sc, loss_by_events, log_reset_h
+    return log_cid, log_cid_fi, log_cid_sc, loss_by_events, log_reset_h, log_use_sc, log_pe_peak
 
 
 '''evaluate loss on the validation set'''
-log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr = run_model(tvs.train_ids, p=p, train_mode=True)
-log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te = run_model(tvs.valid_ids, p=p, train_mode=False)
-
+results_tr = run_model(tvs.train_ids, p=p, train_mode=True)
+[log_cid_tr, log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr, log_use_sc_tr, log_pe_peak_tr] = results_tr
+results_te = run_model(tvs.valid_ids, p=p, train_mode=False)
+[log_cid_te, log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te, log_use_sc_te, log_pe_peak_te] = results_te
 
 '''plot the data '''
 # plot loss by valid event
@@ -231,6 +286,7 @@ num_boundaries_te = num_boundaries_per_event(log_cid_fi_te)
 f, ax = plt.subplots(1,1, figsize=(7,4))
 sns.kdeplot(num_boundaries_tr, ax=ax, label='train')
 sns.kdeplot(num_boundaries_te, ax=ax, label='test')
+ax.set_title('boundaries under full inference ')
 ax.set_ylabel('p')
 ax.set_xlabel('# boundaries')
 ax.legend()
@@ -250,9 +306,12 @@ def compute_n_ctx_over_time(log_cid_):
     return max_ctx_by_events
 
 log_cid_fi = log_cid_fi_tr + log_cid_fi_te
-n_ctx_over_time = compute_n_ctx_over_time(log_cid_fi)
+log_cid = log_cid_tr + log_cid_te
+n_ctx_over_time_fi = compute_n_ctx_over_time(log_cid_fi)
+n_ctx_over_time = compute_n_ctx_over_time(log_cid)
 f, ax = plt.subplots(1,1, figsize=(5,4))
-ax.plot(n_ctx_over_time)
+ax.plot(n_ctx_over_time_fi, label = 'full inference')
+ax.plot(n_ctx_over_time, label = 'actual')
 ax.set_xlabel('training video id')
 ax.set_ylabel('# of contexts inferred')
 ax.axvline(len(log_cid_fi_tr), label='start testing', ls='--', color='grey')
@@ -263,12 +322,12 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
 # are the context being used?
-
-n_ctx = int(n_ctx_over_time[-1])+1
+n_ctx = int(n_ctx_over_time_fi[-1])+1
 ctx_usage = np.zeros((tvs.n_files, n_ctx))
-
 for i in range(tvs.n_files):
-    ctx_used, counts = np.unique(log_cid_fi[i], return_counts=True)
+    # check for the ith video, what context were used
+    # ctx_used, counts = np.unique(log_cid_fi[i], return_counts=True)
+    ctx_used, counts = np.unique(log_cid[i], return_counts=True)
     for ctx_id_i, count_i in zip(ctx_used, counts):
         ctx_usage[i, int(ctx_id_i)] += count_i
 
@@ -282,7 +341,7 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 low_use_threshold = 5
 low_use_ctx = []
-n_ctx_tr = int(compute_n_ctx_over_time(log_cid_fi_tr)[-1])
+n_ctx_tr = int(compute_n_ctx_over_time(log_cid_tr)[-1])
 f, ax = plt.subplots(1,1, figsize=(14, 6))
 for i in np.arange(1, n_ctx_tr):
     if np.sum(ctx_usage[tvs.n_train_files:,i]) < low_use_threshold:
@@ -326,15 +385,32 @@ def plot_event_len_distribution(event_len_, to_sec=True):
     f.tight_layout()
     return f, ax
 
+# event length under full inference
+# event_len_tr = get_event_len(log_cid_fi_tr)
+# event_len_te = get_event_len(log_cid_fi_te)
+# f, ax = plot_event_len_distribution(event_len_tr)
+# fig_path = os.path.join(p.fig_dir, f'len-event-train.png')
+# f.savefig(fig_path, dpi=100, bbox_inches='tight')
+# f, ax = plot_event_len_distribution(event_len_te)
+# fig_path = os.path.join(p.fig_dir, f'len-event-test.png')
+# f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
-event_len_tr = get_event_len(log_cid_fi_tr)
-event_len_te = get_event_len(log_cid_fi_te)
+# actual event length
+event_len_tr = get_event_len(log_cid_tr)
+event_len_te = get_event_len(log_cid_te)
 f, ax = plot_event_len_distribution(event_len_tr)
 fig_path = os.path.join(p.fig_dir, f'len-event-train.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 f, ax = plot_event_len_distribution(event_len_te)
 fig_path = os.path.join(p.fig_dir, f'len-event-test.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+# def resize_bound_vecs(model_bound_vec_, pad_l_, hb_):
+#     model_bound_vec_ = np.concatenate([np.zeros(pad_l_), model_bound_vec_])
+#     # trim one vector if the other is too long
+#     hb_ = hb_[:len(model_bound_vec_)]
+#     model_bound_vec_ = model_bound_vec_[:len(hb_)]
+#     return model_bound_vec_, hb_
 
 '''correlation with human boundaries'''
 
@@ -343,6 +419,7 @@ r_m_fine = np.zeros(len(log_cid_fi_te),)
 r_l_crse = np.zeros(len(log_cid_fi_te),)
 r_l_fine = np.zeros(len(log_cid_fi_te),)
 model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
+
 event_id_list = tvs.valid_ids
 t_f1 = dl.get_1st_frame_ids(event_id_list)
 for i, event_id in enumerate(event_id_list):
@@ -351,16 +428,20 @@ for i, event_id in enumerate(event_id_list):
     chb = hb.get_bound_prob(event_id_list[i], 'coarse')
     fhb = hb.get_bound_prob(event_id_list[i], 'fine')
     # get model bounds
-    len(log_reset_h_te[i])
-    # len(log_cid_fi_te[i])
-    model_ctx_bound_vec = context_to_bound_vec(log_cid_fi_te[i])
+    model_ctx_bound_vec = context_to_bound_vec(log_cid_te[i])
+    model_ctx_bound_vec_fi = context_to_bound_vec(log_cid_fi_te[i])
+    model_ctx_bound_vec_sc = context_to_bound_vec(log_cid_sc_te[i])
     model_loss_bound_vec = loss_to_bound_vec(loss_by_events_te[i], model_ctx_bound_vec)
     # get the true event label
     event_bound_times, event_bound_vec = evlab.get_bounds(event_id_list[i])
+    # get PE peaks
+    pe_peak_locs = np.where(log_pe_peak_te[i])[0]
 
     # left pad by the 1st frame index
     pad_l = int(t_f1[i] * 3)
     model_ctx_bound_vec = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec])
+    model_ctx_bound_vec_fi = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec_fi])
+    model_ctx_bound_vec_sc = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec_sc])
     model_loss_bound_vec = np.concatenate([np.zeros(pad_l), model_loss_bound_vec])
     reset_h_vec = np.concatenate([np.zeros(pad_l), log_reset_h_te[i]])
 
@@ -370,12 +451,21 @@ for i, event_id in enumerate(event_id_list):
     # if human data is longer trim the model data
     model_ctx_bound_vec_c = model_ctx_bound_vec[:len(chb)]
     model_ctx_bound_vec_f = model_ctx_bound_vec[:len(fhb)]
+    model_ctx_bound_vec_fi_c = model_ctx_bound_vec_fi[:len(chb)]
+    model_ctx_bound_vec_fi_f = model_ctx_bound_vec_fi[:len(fhb)]
+    model_ctx_bound_vec_sc_c = model_ctx_bound_vec_sc[:len(chb)]
+    model_ctx_bound_vec_sc_f = model_ctx_bound_vec_sc[:len(fhb)]
     model_loss_bound_vec_c = model_loss_bound_vec[:len(chb)]
     model_loss_bound_vec_f = model_loss_bound_vec[:len(fhb)]
     reset_h_vec_c = reset_h_vec[:len(chb)]
     reset_h_vec_f = reset_h_vec[:len(fhb)]
+
     model_ctx_bound_loc_c = np.where(model_ctx_bound_vec_c)[0]
     model_ctx_bound_loc_f = np.where(model_ctx_bound_vec_f)[0]
+    model_ctx_bound_loc_fi_c = np.where(model_ctx_bound_vec_fi_c)[0]
+    model_ctx_bound_loc_fi_f = np.where(model_ctx_bound_vec_fi_f)[0]
+    model_ctx_bound_loc_sc_c = np.where(model_ctx_bound_vec_sc_c)[0]
+    model_ctx_bound_loc_sc_f = np.where(model_ctx_bound_vec_sc_f)[0]
     reset_h_loc_c = np.where(reset_h_vec_c)[0]
     reset_h_loc_f = np.where(reset_h_vec_f)[0]
 
@@ -387,52 +477,85 @@ for i, event_id in enumerate(event_id_list):
 
     model_bounds_c.append(model_ctx_bound_vec_c)
     model_bounds_f.append(model_ctx_bound_vec_f)
-    chbs.append(chbs)
-    fhbs.append(fhbs)
+    chbs.append(chb)
+    fhbs.append(fhb)
+
+    # assert set(model_ctx_bound_loc_fi_f).issubset(set(model_ctx_bound_loc_f))
+    # assert set(model_ctx_bound_loc_fi_c).issubset(set(model_ctx_bound_loc_c))
 
     '''plot this event'''
-    alpha = .75
     f, axes = plt.subplots(2, 1, figsize=(12, 9))
-    axes[1].set_xlabel('Time unit (X)')
-    f.suptitle(f'{event_id} (actor: {actor_id}, chapter: {ID2CHAPTER[chapter_id]}, run: {run_id})')
+
     for j, mb in enumerate(model_ctx_bound_loc_c):
+        ls = '--' if mb in model_ctx_bound_loc_fi_f else ':'
         label = 'model bound' if j == 0 else None
         color = 'black' if mb in reset_h_loc_c else 'grey'
-        axes[0].axvline(mb, ls='--', color=color, label=label)
-    axes[0].plot(chb, label='coarse bounds', alpha=alpha)
+        axes[0].axvline(mb, ls=ls, color=color, label=label)
+
     for j, mb in enumerate(model_ctx_bound_loc_f):
+
+        ls = '--' if mb in model_ctx_bound_loc_fi_f else ':'
         label = 'model bound' if j == 0 else None
         color = 'black' if mb in reset_h_loc_f else 'grey'
-        axes[1].axvline(mb, ls='--', color=color, label=label)
-    axes[1].plot(fhb, label='fine bounds', alpha=alpha)
+        axes[1].axvline(mb, ls=ls, color=color, label=label)
+
+    for j, pe_peak_loc in enumerate(pe_peak_locs):
+        label = 'shortcut PE peak' if j == 0 else None
+        axes[0].axvline(mb, ls='-.', color='red', label=label)
+        axes[1].axvline(mb, ls='-.', color='red', label=label)
+
+    assert len(chb) == len(model_ctx_bound_vec_c)
+    assert len(fhb) == len(model_ctx_bound_vec_f)
+    axes[0].plot(chb, label='coarse bounds')
+    axes[1].plot(fhb, label='fine bounds')
     axes[0].legend()
     axes[1].legend()
     axes[0].set_ylabel('p')
     axes[1].set_ylabel('p')
-    axes[0].set_title(f'mean correlation = %.3f' % (r_m_crse[i]))
-    axes[1].set_title(f'mean correlation = %.3f' % (r_m_fine[i]))
-    sns.despine()
+    axes[0].set_title(f'mean correlation with coarse human boundaries = %.3f' % (r_m_crse[i]))
+    axes[1].set_title(f'mean correlation with fine human boundaries = %.3f' % (r_m_fine[i]))
+    axes[1].set_xlabel('Time unit (X)')
+    f.suptitle(f'{event_id} (actor: {actor_id}, chapter: {ID2CHAPTER[chapter_id]}, run: {run_id})')
     f.tight_layout()
+    sns.despine()
     fig_path = os.path.join(p.fig_dir, f'event-{event_id}-mb-vs-hb.png')
     f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
-# def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 50):
-#     r, _ = get_point_biserial(
-#         np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
-#     )
-#     r_perm = np.zeros(n_perms, )
-#     for i in range(n_perms):
-#         random.shuffle(model_bounds_list)
-#         r_perm[i], _ = get_point_biserial(
-#             np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
-#         )
-#     return r, r_perm
-#
-# r, r_perm = compute_corr_with_perm(model_bounds_c, chbs, n_perms = 50)
-# print(r, r_perm)
-# r, r_perm = compute_corr_with_perm(model_bounds_f, fhbs, n_perms = 50)
-# print(r, r_perm)
+
+def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
+    # r, _ = get_point_biserial(
+    #     np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+    # )
+    r_perm = np.zeros(n_perms, )
+    for i in range(n_perms):
+        random.shuffle(model_bounds_list)
+        r_perm[i], _ = get_point_biserial(
+            np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+        )
+    return r_perm
+
+r_perm = compute_corr_with_perm(model_bounds_c, chbs)
+f, ax = plt.subplots(1,1, figsize=(6,4))
+sns.kdeplot(r_perm, label='permutation')
+ax.axvline(np.nanmean(r_m_crse), ls='--', color='k', label='observed')
+ax.set_title('model boundaries vs. corase human boundaries')
+ax.set_xlabel('Point biserial correlation')
+ax.legend()
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-chb-permutation.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+r_perm = compute_corr_with_perm(model_bounds_f, fhbs)
+f, ax = plt.subplots(1,1, figsize=(6,4))
+sns.kdeplot(r_perm, label='permutation')
+ax.axvline(np.nanmean(r_m_fine), ls='--', color='k', label='observed')
+ax.set_title('model boundaries vs. fine human boundaries')
+ax.set_xlabel('Point biserial correlation')
+ax.legend()
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-fhb-permutation.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
@@ -448,8 +571,9 @@ axes[0].set_ylabel('Coarse')
 axes[1].set_ylabel('Fine')
 f.tight_layout()
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-r-mode-vs-human-bounds.png')
+fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-hb.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
 
 f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
 sns.violinplot(r_l_crse, ax=axes[0])
@@ -464,14 +588,11 @@ axes[0].set_ylabel('Coarse')
 axes[1].set_ylabel('Fine')
 f.tight_layout()
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-r-loss-vs-human-bounds.png')
+fig_path = os.path.join(p.fig_dir, f'final-r-loss-vs-hb.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 # compute shortcut accuracy over time
 sc_acc_tr, sc_acc_te = [], []
-# plt.plot(log_cid_fi_tr_i)
-# plt.plot(log_cid_sc_tr_i)
-# plt.plot(log_cid_fi_tr_i == log_cid_sc_tr_i)
 for i, (log_cid_fi_tr_i, log_cid_sc_tr_i) in enumerate(zip(log_cid_fi_tr, log_cid_sc_tr)):
     # if i == 0: break
     sc_acc_tr.append(np.mean(log_cid_fi_tr_i == log_cid_sc_tr_i))
@@ -481,8 +602,8 @@ for i, (log_cid_fi_te_i, log_cid_sc_te_i) in enumerate(zip(log_cid_fi_te, log_ci
 sc_acc_tr_mu, sc_acc_tr_se = compute_stats(sc_acc_tr)
 sc_acc_te_mu, sc_acc_te_se = compute_stats(sc_acc_te)
 # compute precent null
-percent_sc_null_tr = [x == -1 / len(x) for x in log_cid_sc_tr]
-percent_sc_null_te = [x == -1 / len(x) for x in log_cid_sc_te]
+percent_sc_null_tr = [np.mean(x == -1) for x in log_cid_sc_tr]
+percent_sc_null_te = [np.mean(x == -1) for x in log_cid_sc_te]
 
 sc_pnull_tr_mu, sc_pnull_tr_se = compute_stats(percent_sc_null_tr)
 sc_pnull_te_mu, sc_pnull_te_se = compute_stats(percent_sc_null_te)
@@ -538,7 +659,7 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 f, ax = plt.subplots(1,1, figsize=(5,4))
 ax.plot(np.diag(cfmat))
-ax.set_ylabel('% match between shortcut vs full inference')
+ax.set_ylabel('% match shortcut vs full inference')
 ax.set_xlabel('context id')
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'sc-confusion-mat-diag.png')
@@ -577,4 +698,4 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 # evlab.
 '''permutation and MI'''
-evlab
+# evlab

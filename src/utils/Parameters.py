@@ -12,11 +12,15 @@ class Parameters():
         lik_softmax_beta=.33,
         try_reset_h=False,
         use_shortcut=False,
+        pe_tracker_size = 256,
+        match_tracker_size = 5,
+        n_pe_std = 2,
         lr = 1e-3,
         update_freq = 10,
         subj_id = 0,
         dim_input = 30,
         dim_output = 30,
+
         verbose=True,
         log_root = '../log',
         exp_name = 'testing',
@@ -41,6 +45,9 @@ class Parameters():
         # short cut param
         self.use_shortcut = use_shortcut
         self.gen_grad = gen_grad
+        self.pe_tracker_size = pe_tracker_size
+        self.match_tracker_size = match_tracker_size
+        self.n_pe_std = n_pe_std
         # training param
         self.lr = lr
         self.update_freq = update_freq
@@ -48,7 +55,7 @@ class Parameters():
         # sub_dirs
         self.exp_name = exp_name
         self.log_root = log_root
-        sub_dirs = f'{exp_name}/dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        sub_dirs = f'{exp_name}/dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/mtsize-{match_tracker_size}-npe-{n_pe_std}-petsize-{pe_tracker_size}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
         self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
         self.result_dir = os.path.join(self.log_root, sub_dirs, 'result')

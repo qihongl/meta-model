@@ -23,6 +23,9 @@ srun python -u train.py \
     --try_reset_h ${9} \
     --use_shortcut ${10} \
     --gen_grad ${11} \
+    --pe_tracker_size ${12} \
+    --match_tracker_size ${13} \
+    --n_pe_std ${14} \
     --exp_name $DT \
     --log_root $LOGROOT
 
