@@ -3,7 +3,7 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for subj_id in {0..2}
+for subj_id in {0..1}
 do
   for lr in 1e-3
   do
