@@ -7,7 +7,7 @@ for subj_id in {0..1}
 do
   for lr in 1e-3
   do
-    for update_freq in 4
+    for update_freq in 1
     do
       for dim_context in 256
       do
@@ -19,11 +19,11 @@ do
             do
               for use_shortcut in 0 1
               do
-                for gen_grad in 2 9
+                for gen_grad in 3 5
                   do
                     for pe_tracker_size in 256
                     do
-                      for match_tracker_size in 8 4
+                      for match_tracker_size in 4 64
                       do
                         for n_pe_std in 1 2 3
                         do
