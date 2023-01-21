@@ -56,7 +56,7 @@ class SimpleContext():
         sticky_uniform_vec = np.ones(len(likelihood),)
         if self.prev_cluster_id is not None:
             sticky_uniform_vec[self.prev_cluster_id] += self.stickiness
-            # if try reset h then the last dim is the resetted context 
+            # if try reset h then the last dim is the resetted context
             if self.try_reset_h:
                 sticky_uniform_vec[-1] += self.stickiness
         prior = sticky_uniform_vec / np.sum(sticky_uniform_vec)
@@ -65,7 +65,8 @@ class SimpleContext():
         return likelihood * prior
 
     def assign_context(self, likelihood, verbose=1):
-        assert np.all(likelihood) > 0
+        # if np.any(likelihood) <= 0: print(likelihood)
+        assert np.all(likelihood) >= 0, f'invalid likelihood {likelihood}'
         reset_h = False
         posterior = self.compute_posterior(likelihood)
         max_pos_cid = np.argmax(posterior)
