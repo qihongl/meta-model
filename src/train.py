@@ -79,7 +79,7 @@ log_root = args.log_root
 # subj_id = 0
 # #
 # lr = 1e-3
-# update_freq = 32
+# update_freq = 16
 # # model param
 # dim_hidden = 16
 # dim_context = 64
@@ -94,7 +94,7 @@ log_root = args.log_root
 # # handoff param
 # pe_tracker_size = 256
 # match_tracker_size = 8
-# n_pe_std = 2
+# n_pe_std = 3
 
 # set seed
 np.random.seed(subj_id)
@@ -420,25 +420,38 @@ r_l_crse = np.zeros(len(log_cid_fi_te),)
 r_l_fine = np.zeros(len(log_cid_fi_te),)
 model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
 
+
+def vec_to_sec(vec):
+    return [np.any(vec[t:t+3])==1 for t in range(0, len(vec), 3)]
+
+
+
 event_id_list = tvs.valid_ids
 t_f1 = dl.get_1st_frame_ids(event_id_list)
 for i, event_id in enumerate(event_id_list):
     # if i == 0: break
     actor_id, chapter_id, run_id = split_video_id(event_id)
-    chb = hb.get_bound_prob(event_id_list[i], 'coarse')
-    fhb = hb.get_bound_prob(event_id_list[i], 'fine')
-    # get model bounds
+    chb = hb.get_bound_prob(event_id_list[i], 'coarse', to_sec=True)
+    fhb = hb.get_bound_prob(event_id_list[i], 'fine', to_sec=True)
+
     model_ctx_bound_vec = context_to_bound_vec(log_cid_te[i])
     model_ctx_bound_vec_fi = context_to_bound_vec(log_cid_fi_te[i])
     model_ctx_bound_vec_sc = context_to_bound_vec(log_cid_sc_te[i])
     model_loss_bound_vec = loss_to_bound_vec(loss_by_events_te[i], model_ctx_bound_vec)
+
+    model_ctx_bound_vec = vec_to_sec(model_ctx_bound_vec)
+    model_ctx_bound_vec_fi = vec_to_sec(model_ctx_bound_vec_fi)
+    model_ctx_bound_vec_sc = vec_to_sec(model_ctx_bound_vec_sc)
+    model_loss_bound_vec = vec_to_sec(model_loss_bound_vec)
+
     # get the true event label
-    event_bound_times, event_bound_vec = evlab.get_bounds(event_id_list[i])
+    event_bound_times, event_bound_vec = evlab.get_bounds(event_id_list[i], to_sec=True)
     # get PE peaks
     pe_peak_locs = np.where(log_pe_peak_te[i])[0]
 
     # left pad by the 1st frame index
-    pad_l = int(t_f1[i] * 3)
+    # pad_l = int(t_f1[i] * 3)
+    pad_l = int(t_f1[i])
     model_ctx_bound_vec = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec])
     model_ctx_bound_vec_fi = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec_fi])
     model_ctx_bound_vec_sc = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec_sc])
@@ -523,17 +536,41 @@ for i, event_id in enumerate(event_id_list):
 
 
 
+# def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
+#     # r, _ = get_point_biserial(
+#     #     np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+#     # )
+#     r_perm = np.zeros(n_perms, )
+#     for i in range(n_perms):
+#         random.shuffle(model_bounds_list)
+#         r_perm[i], _ = get_point_biserial(
+#             np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+#         )
+#     return r_perm
+
 def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
-    # r, _ = get_point_biserial(
-    #     np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
-    # )
     r_perm = np.zeros(n_perms, )
+    all_event_segs = []
+    for i, model_bounds_list_i in enumerate(model_bounds_list):
+        all_event_segs.extend(get_event_segments(model_bounds_list_i))
     for i in range(n_perms):
-        random.shuffle(model_bounds_list)
+        random.shuffle(all_event_segs)
         r_perm[i], _ = get_point_biserial(
-            np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+            np.concatenate(all_event_segs), np.concatenate(phuman_bounds_list)
         )
     return r_perm
+
+
+def get_event_segments(model_bounds_arr):
+    bound_locs = list(np.where(model_bounds_arr)[0])
+    if len(bound_locs) == 0:
+        return [model_bounds_arr]
+    bound_locs = [0] + bound_locs
+    all_event_segs = [model_bounds_arr[bound_locs[i]+1 : bound_locs[i+1]+1] for i in range(len(bound_locs)-1)]
+    all_event_segs.append(model_bounds_arr[bound_locs[-1]:])
+    return all_event_segs
+
+
 
 r_perm = compute_corr_with_perm(model_bounds_c, chbs)
 f, ax = plt.subplots(1,1, figsize=(6,4))
