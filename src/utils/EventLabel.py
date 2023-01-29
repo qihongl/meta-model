@@ -10,8 +10,8 @@ class EventLabel:
 
     def __init__(self):
         self.df = pd.read_csv(EVENT_LABEL_FPATH)
-        self.all_evnames = np.unique(self.df['evname'])
-        self.n_evnames = len(self.all_evnames)
+        self.all_subev_names = np.unique(self.df['evname'])
+        self.n_subev_names = len(self.all_subev_names)
 
     def get_subdf(self, event_id):
         '''
@@ -20,13 +20,16 @@ class EventLabel:
         '''
         return self.df.loc[self.df['run'] == event_id]
 
-    def get_all_evnums(self, event_id):
+    def get_all_subev_nums(self, event_id):
         '''
         input: a string in the form of '6.1.4_kinect_sep_09.pkl'
         output: a list of all event numbers
         '''
         sub_df = self.get_subdf(event_id)
         return list(sub_df['evnum'])
+
+    def get_subev_num(self, evname):
+        return list(self.all_subev_names).index(evname)
 
     def get_bounds(self, event_id, to_sec=False):
         sub_df = self.get_subdf(event_id)
@@ -57,6 +60,21 @@ class EventLabel:
         return event_bound[0], event_bound[-1]
 
 
+    def get_subev_labels(self, event_id, to_sec=True):
+        # get event label info for event i in secs
+        df_i = self.get_subdf(event_id)
+        event_i_len = int(np.round(df_i['endsec'].iloc[-1]))
+        if not to_sec:
+            event_i_len *=3
+        sub_ev_label_i = np.full(event_i_len, np.nan)
+        for evname, evnum, t_start, t_end in zip(df_i['evname'], df_i['evnum'], df_i['startsec'], df_i['endsec']):
+            t_start, t_end = int(t_start), int(t_end)
+            if not to_sec:
+                t_start, t_end = t_start * 3 , t_end * 3
+            # the +1 here ensure there is no gap for the sub event label when round to sec
+            sub_ev_label_i[t_start:t_end+1] = self.get_subev_num(evname)
+        return sub_ev_label_i
+
 def vectorize_event_bounds(event_bonds):
     T = int(max(np.round(event_bonds))) + 1
     event_bounds_vec = np.zeros(T)
@@ -75,15 +93,17 @@ if __name__ == "__main__":
     event_id = '1.1.1'
     sub_df = evlab.get_subdf(event_id)
     sub_df['startsec']
-    print(evlab.all_evnames)
-    print(evlab.n_evnames)
+    print(evlab.all_subev_names)
+    print(evlab.n_subev_names)
 
 
-    evnums = evlab.get_all_evnums(event_id)
+    evnums = evlab.get_all_subev_nums(event_id)
 
     (t_start, t_end) = evlab.get_subev_times(event_id, 1)
     print(t_start, t_end)
 
     event_bound, event_bound_vec = evlab.get_bounds(event_id)
+    subev_labels = evlab.get_subev_labels(event_id, to_sec=False)
 
     print(event_bound)
+    print(subev_labels)

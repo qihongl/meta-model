@@ -3,7 +3,7 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for subj_id in {0..3}
+for subj_id in {0..2}
 do
   for lr in 1e-3
   do
@@ -13,7 +13,7 @@ do
       do
         for dim_hidden in 16
         do
-          for stickiness in 1 2 4
+          for stickiness in 1 2 4 8
           do
             for try_reset_h in 0
             do
@@ -25,7 +25,7 @@ do
                     do
                       for match_tracker_size in 4
                       do
-                        for n_pe_std in 1 3
+                        for n_pe_std in 3
                         do
                         sbatch train.sh \
                              ${subj_id} \

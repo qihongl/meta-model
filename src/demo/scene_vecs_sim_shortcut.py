@@ -66,6 +66,8 @@ for i, event_id in enumerate(event_id_list):
         if i == tvs.n_train_files:
             n_train_scene_vecs = len(scene_vecs)
 
+np.shape(subev_ids)
+
 scene_vecs_s = np.vstack(scene_vecs)
 subev_ids_s = np.concatenate(subev_ids)
 n_train_vecs = np.shape(np.vstack(scene_vecs[:n_train_scene_vecs]))[0]

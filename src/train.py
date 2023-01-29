@@ -13,8 +13,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+
 from tqdm import tqdm
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, mutual_info_score
 from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
@@ -88,7 +89,7 @@ log_root = args.log_root
 # gen_grad = 3.0
 # # full inference param
 # ctx_wt = .5
-# stickiness = 2.0
+# stickiness = 3.0
 # lik_softmax_beta = .33
 # try_reset_h = False
 # # handoff param
@@ -414,20 +415,23 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 '''correlation with human boundaries'''
 
+
+def vec_to_sec(vec):
+    return [np.any(vec[t:t+3])==1 for t in range(0, len(vec), 3)]
+
+def ctx_vec_to_sec(vec):
+    return [Counter(vec[t:t+3]).most_common()[0][0] for t in range(0, len(vec), 3)]
+
 r_m_crse = np.zeros(len(log_cid_fi_te),)
 r_m_fine = np.zeros(len(log_cid_fi_te),)
 r_l_crse = np.zeros(len(log_cid_fi_te),)
 r_l_fine = np.zeros(len(log_cid_fi_te),)
 model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
-
-
-def vec_to_sec(vec):
-    return [np.any(vec[t:t+3])==1 for t in range(0, len(vec), 3)]
-
-
+sub_evn_label, mod_evn_label = [], []
 
 event_id_list = tvs.valid_ids
 t_f1 = dl.get_1st_frame_ids(event_id_list)
+mi = np.zeros(len(event_id_list))
 for i, event_id in enumerate(event_id_list):
     # if i == 0: break
     actor_id, chapter_id, run_id = split_video_id(event_id)
@@ -451,7 +455,7 @@ for i, event_id in enumerate(event_id_list):
 
     # left pad by the 1st frame index
     # pad_l = int(t_f1[i] * 3)
-    pad_l = int(t_f1[i])
+    pad_l = int(np.round(t_f1[i]))
     model_ctx_bound_vec = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec])
     model_ctx_bound_vec_fi = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec_fi])
     model_ctx_bound_vec_sc = np.concatenate([np.zeros(pad_l), model_ctx_bound_vec_sc])
@@ -492,6 +496,21 @@ for i, event_id in enumerate(event_id_list):
     model_bounds_f.append(model_ctx_bound_vec_f)
     chbs.append(chb)
     fhbs.append(fhb)
+
+    # get the context vector and event label into sec space
+    log_cid_te_i_sec = ctx_vec_to_sec(log_cid_te[i])
+    sub_evn_label_i = evlab.get_subev_labels(event_id, to_sec=True)
+    # left trim the vectors
+    sub_evn_label_i = sub_evn_label_i[pad_l:]
+    # right trim the vector
+    min_len = np.min([len(sub_evn_label_i), len(log_cid_te_i_sec)])
+    sub_evn_label_i = sub_evn_label_i[:min_len]
+    log_cid_te_i_sec = log_cid_te_i_sec[:min_len]
+    # compute MI
+    nan_mask = np.logical_or(np.isnan(log_cid_te_i_sec), np.isnan(sub_evn_label_i))
+    sub_evn_label.append(np.array(sub_evn_label_i)[~nan_mask])
+    mod_evn_label.append(np.array(log_cid_te_i_sec)[~nan_mask])
+    mi[i] = mutual_info_score(sub_evn_label[i], mod_evn_label[i])
 
     # assert set(model_ctx_bound_loc_fi_f).issubset(set(model_ctx_bound_loc_f))
     # assert set(model_ctx_bound_loc_fi_c).issubset(set(model_ctx_bound_loc_c))
@@ -535,19 +554,6 @@ for i, event_id in enumerate(event_id_list):
     f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
-
-# def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
-#     # r, _ = get_point_biserial(
-#     #     np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
-#     # )
-#     r_perm = np.zeros(n_perms, )
-#     for i in range(n_perms):
-#         random.shuffle(model_bounds_list)
-#         r_perm[i], _ = get_point_biserial(
-#             np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
-#         )
-#     return r_perm
-
 def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
     r_perm = np.zeros(n_perms, )
     all_event_segs = []
@@ -558,7 +564,10 @@ def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500)
         r_perm[i], _ = get_point_biserial(
             np.concatenate(all_event_segs), np.concatenate(phuman_bounds_list)
         )
-    return r_perm
+    r, _ = get_point_biserial(
+        np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+    )
+    return r_perm, r
 
 
 def get_event_segments(model_bounds_arr):
@@ -570,63 +579,99 @@ def get_event_segments(model_bounds_arr):
     all_event_segs.append(model_bounds_arr[bound_locs[-1]:])
     return all_event_segs
 
+def get_mod_evn_label_segments(mod_evn_label_i):
+    mod_evn_label_seg = []
+    bound_locs = list(np.where(np.diff(mod_evn_label_i))[0])
+    if len(bound_locs) == 0:
+        mod_evn_label_seg.append(mod_evn_label_i)
+    else:
+        bound_locs = [0] + bound_locs + [len(mod_evn_label_i)]
+        for j in range(len(bound_locs)-1):
+            l, r = bound_locs[j], bound_locs[j+1]
+            mod_evn_label_seg.append(mod_evn_label_i[l:r])
+    return mod_evn_label_seg
+
+def compute_mi_with_perm(mod_evn_label, sub_evn_label, n_perms = 500):
+    mi_perm = np.zeros(n_perms, )
+    all_mod_evn_label_seg = []
+    for i, mod_evn_label_i in enumerate(mod_evn_label):
+        mod_evn_label_seg_i = get_mod_evn_label_segments(mod_evn_label_i)
+        all_mod_evn_label_seg.extend(mod_evn_label_seg_i)
+    for i in range(n_perms):
+        random.shuffle(all_mod_evn_label_seg)
+        mi_perm[i] = mutual_info_score(
+            np.concatenate(all_mod_evn_label_seg), np.concatenate(sub_evn_label)
+        )
+    mi = mutual_info_score(
+        np.concatenate(mod_evn_label), np.concatenate(sub_evn_label)
+    )
+    return mi_perm, mi
 
 
-r_perm = compute_corr_with_perm(model_bounds_c, chbs)
-f, ax = plt.subplots(1,1, figsize=(6,4))
-sns.kdeplot(r_perm, label='permutation')
-ax.axvline(np.nanmean(r_m_crse), ls='--', color='k', label='observed')
-ax.set_title('model boundaries vs. corase human boundaries')
+
+mi_perm, mi = compute_mi_with_perm(mod_evn_label, sub_evn_label)
+f, ax = plt.subplots(1,1, figsize=(7, 4))
+sns.kdeplot(mi_perm, label='permutation')
+ax.axvline(mi, ls='--', color='k', label='observed = %.2f' % mi)
+ax.set_title('MI model vs. truth')
 ax.set_xlabel('Point biserial correlation')
 ax.legend()
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-chb-permutation.png')
+fig_path = os.path.join(p.fig_dir, f'final-mi.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
-r_perm = compute_corr_with_perm(model_bounds_f, fhbs)
-f, ax = plt.subplots(1,1, figsize=(6,4))
-sns.kdeplot(r_perm, label='permutation')
-ax.axvline(np.nanmean(r_m_fine), ls='--', color='k', label='observed')
-ax.set_title('model boundaries vs. fine human boundaries')
-ax.set_xlabel('Point biserial correlation')
-ax.legend()
-sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-fhb-permutation.png')
-f.savefig(fig_path, dpi=100, bbox_inches='tight')
+r_perm, r = compute_corr_with_perm(model_bounds_c, chbs)
+f, axes = plt.subplots(2, 1, figsize=(7, 8))
+sns.kdeplot(r_perm, label='permutation', ax=axes[0])
+axes[0].axvline(r, ls='--', color='k', label='observed = %.2f' % r)
+axes[0].set_title('model boundaries vs. corase human boundaries')
+axes[0].set_xlabel('Point biserial correlation')
+axes[0].legend()
 
-
-f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
-sns.violinplot(r_m_crse, ax=axes[0])
-sns.violinplot(r_m_fine, ax=axes[1])
-for ax in axes:
-    ax.axvline(0, ls='--', c='grey', label='0', zorder=-1)
-    ax.legend()
-axes[0].set_title(f'mean r = %.3f' % (np.nanmean(r_m_crse)))
-axes[1].set_title(f'mean r = %.3f' % (np.nanmean(r_m_fine)))
+r_perm, r = compute_corr_with_perm(model_bounds_f, fhbs)
+sns.kdeplot(r_perm, label='permutation', ax=axes[1])
+axes[1].axvline(r, ls='--', color='k', label='observed = %.2f' % r)
+axes[1].set_title('model boundaries vs. fine human boundaries')
 axes[1].set_xlabel('Point biserial correlation')
-axes[0].set_ylabel('Coarse')
-axes[1].set_ylabel('Fine')
-f.tight_layout()
+axes[1].legend()
 sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-hb.png')
+f.tight_layout()
+fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-hb-permutation.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
-
-f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
-sns.violinplot(r_l_crse, ax=axes[0])
-sns.violinplot(r_l_fine, ax=axes[1])
-for ax in axes:
-    ax.axvline(0, ls='--', c='grey', label='0', zorder=-1)
-    ax.legend()
-axes[0].set_title(f'mean r = %.3f' % (np.nanmean(r_l_crse)))
-axes[1].set_title(f'mean r = %.3f' % (np.nanmean(r_l_fine)))
-axes[1].set_xlabel('Point biserial correlation')
-axes[0].set_ylabel('Coarse')
-axes[1].set_ylabel('Fine')
-f.tight_layout()
-sns.despine()
-fig_path = os.path.join(p.fig_dir, f'final-r-loss-vs-hb.png')
-f.savefig(fig_path, dpi=100, bbox_inches='tight')
+#
+# f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
+# sns.violinplot(r_m_crse, ax=axes[0])
+# sns.violinplot(r_m_fine, ax=axes[1])
+# for ax in axes:
+#     ax.axvline(0, ls='--', c='grey', label='0', zorder=-1)
+#     ax.legend()
+# axes[0].set_title(f'mean r = %.3f' % (np.nanmean(r_m_crse)))
+# axes[1].set_title(f'mean r = %.3f' % (np.nanmean(r_m_fine)))
+# axes[1].set_xlabel('Point biserial correlation')
+# axes[0].set_ylabel('Coarse')
+# axes[1].set_ylabel('Fine')
+# f.tight_layout()
+# sns.despine()
+# fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-hb.png')
+# f.savefig(fig_path, dpi=100, bbox_inches='tight')
+#
+#
+# f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
+# sns.violinplot(r_l_crse, ax=axes[0])
+# sns.violinplot(r_l_fine, ax=axes[1])
+# for ax in axes:
+#     ax.axvline(0, ls='--', c='grey', label='0', zorder=-1)
+#     ax.legend()
+# axes[0].set_title(f'mean r = %.3f' % (np.nanmean(r_l_crse)))
+# axes[1].set_title(f'mean r = %.3f' % (np.nanmean(r_l_fine)))
+# axes[1].set_xlabel('Point biserial correlation')
+# axes[0].set_ylabel('Coarse')
+# axes[1].set_ylabel('Fine')
+# f.tight_layout()
+# sns.despine()
+# fig_path = os.path.join(p.fig_dir, f'final-r-loss-vs-hb.png')
+# f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 # compute shortcut accuracy over time
 sc_acc_tr, sc_acc_te = [], []
