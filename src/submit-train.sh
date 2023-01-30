@@ -3,11 +3,11 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for subj_id in {0..5}
+for subj_id in {0..4}
 do
   for lr in 1e-3
   do
-    for update_freq in 16 32
+    for update_freq in 8 16 32
     do
       for dim_context in 256
       do
@@ -19,11 +19,11 @@ do
             do
               for use_shortcut in 0 1
               do
-                for gen_grad in 3 6
+                for gen_grad in 3
                   do
                     for pe_tracker_size in 256
                     do
-                      for match_tracker_size in 4
+                      for match_tracker_size in 4 16
                       do
                         for n_pe_std in 3
                         do
