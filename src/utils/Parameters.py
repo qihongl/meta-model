@@ -55,10 +55,10 @@ class Parameters():
         # sub_dirs
         self.exp_name = exp_name
         self.log_root = log_root
-        sub_dirs = f'{exp_name}/dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/mtsize-{match_tracker_size}-npe-{n_pe_std}-petsize-{pe_tracker_size}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
-        self.log_dir = os.path.join(self.log_root, sub_dirs, 'ckpt')
-        self.fig_dir = os.path.join(self.log_root, sub_dirs, 'fig')
-        self.result_dir = os.path.join(self.log_root, sub_dirs, 'result')
+        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/mtsize-{match_tracker_size}-npe-{n_pe_std}-petsize-{pe_tracker_size}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        self.log_dir = os.path.join(self.log_root, f'{exp_name}-ckpt', sub_dirs)
+        self.fig_dir = os.path.join(self.log_root, f'{exp_name}-fig', sub_dirs)
+        self.result_dir = os.path.join(self.log_root, f'{exp_name}-result', sub_dirs)
         print(self.log_dir)
         print(self.fig_dir)
         print(self.result_dir)
