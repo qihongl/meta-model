@@ -7,7 +7,8 @@
 #SBATCH --output slurm_log/%j.log
 
 LOGROOT=/tigress/qlu/logs/meta-model/log
-DT=$(date +%Y-%m-%d)
+# DT=$(date +%Y-%m-%d)
+DT=jan30-extra
 
 echo $(date)
 
