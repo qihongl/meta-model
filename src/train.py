@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 
 from tqdm import tqdm
+from collections import Counter
 from sklearn.metrics import confusion_matrix, mutual_info_score
 from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
