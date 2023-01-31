@@ -7,7 +7,7 @@ for subj_id in {0..4}
 do
   for lr in 1e-3
   do
-    for update_freq in 8 16 32
+    for update_freq in 16 32
     do
       for dim_context in 256
       do
