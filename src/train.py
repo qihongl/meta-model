@@ -366,7 +366,7 @@ def get_event_len(log_cid_):
         if len(loc_boundaries) == 0:
             event_len.append(len(cid_i))
         else:
-            event_len.extend(loc_boundaries)
+            # event_len.extend(loc_boundaries)
             event_len.append(len(cid_i) - loc_boundaries[-1])
     return np.array(event_len)
 
@@ -399,10 +399,11 @@ def plot_event_len_distribution(event_len_, to_sec=True):
 
 # actual event length
 event_len_tr = get_event_len(log_cid_tr)
-event_len_te = get_event_len(log_cid_te)
 f, ax = plot_event_len_distribution(event_len_tr)
 fig_path = os.path.join(p.fig_dir, f'len-event-train.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+event_len_te = get_event_len(log_cid_te)
 f, ax = plot_event_len_distribution(event_len_te)
 fig_path = os.path.join(p.fig_dir, f'len-event-test.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
@@ -435,7 +436,9 @@ t_f1 = dl.get_1st_frame_ids(event_id_list)
 mi = np.zeros(len(event_id_list))
 for i, event_id in enumerate(event_id_list):
     # if i == 0: break
+
     actor_id, chapter_id, run_id = split_video_id(event_id)
+
     chb = hb.get_bound_prob(event_id_list[i], 'coarse', to_sec=True)
     fhb = hb.get_bound_prob(event_id_list[i], 'fine', to_sec=True)
 
@@ -621,25 +624,40 @@ sns.despine()
 fig_path = os.path.join(p.fig_dir, f'final-mi.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
+human_r_crse, human_r_fine = hb.get_average_human_ceiling(tvs.valid_ids)
+
 r_perm, r = compute_corr_with_perm(model_bounds_c, chbs)
-f, axes = plt.subplots(2, 1, figsize=(7, 8))
+f, axes = plt.subplots(2, 1, figsize=(8, 8), sharey=True)
 sns.kdeplot(r_perm, label='permutation', ax=axes[0])
 axes[0].axvline(np.nanmean(r_m_crse), ls='--', color='k', label='observed = %.2f' % np.nanmean(r_m_crse))
+axes[0].axvline(np.nanmean(human_r_crse), ls='--', color='red', label='human baseline = %.2f' % np.nanmean(human_r_crse))
 axes[0].set_title('model boundaries vs. corase human boundaries')
 axes[0].set_xlabel('Point biserial correlation')
+axes[0].set_xlim([0, None])
 axes[0].legend()
 
 r_perm, r = compute_corr_with_perm(model_bounds_f, fhbs)
 sns.kdeplot(r_perm, label='permutation', ax=axes[1])
 axes[1].axvline(np.nanmean(r_m_fine), ls='--', color='k', label='observed = %.2f' % np.nanmean(r_m_fine))
+axes[1].axvline(np.nanmean(human_r_fine), ls='--', color='red', label='human baseline = %.2f' % np.nanmean(human_r_fine))
 axes[1].set_title('model boundaries vs. fine human boundaries')
 axes[1].set_xlabel('Point biserial correlation')
+axes[1].set_xlim([0, None])
 axes[1].legend()
 sns.despine()
 f.tight_layout()
 fig_path = os.path.join(p.fig_dir, f'final-r-model-vs-hb-permutation.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
+n_bounds = [np.sum(x) for x in model_bounds_c]
+f, ax = plt.subplots(1,1, figsize=(7,4))
+ax.hist(n_bounds)
+ax.set_title('mean = %.2f' % (np.nanmean(n_bounds)))
+ax.set_xlabel('# boundaries')
+ax.set_ylabel('Frequency')
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'n-bounds.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 # f, axes = plt.subplots(2, 1, figsize=(5,7), sharex=True)
 # sns.violinplot(r_m_crse, ax=axes[0])

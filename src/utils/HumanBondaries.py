@@ -88,13 +88,20 @@ class HumanBondaries:
         for j in range(n):
             bound_times_except_1sub = [x for i, x in enumerate(bound_times) if i!=j]
             all_bound_times_except_1sub = np.round(np.concatenate(bound_times_except_1sub))
-            prob_j = hb._get_bound_prob(all_bound_times_except_1sub, n, T, cap_at_one=True)
+            prob_j = self._get_bound_prob(all_bound_times_except_1sub, n, T, cap_at_one=True)
             # print(len(bound_vecs[j]))
             # print(len(prob_j))
             # print()
             r[j], _ = get_point_biserial(bound_vecs[j], prob_j)
         return r
 
+    def get_average_human_ceiling(self, event_id_list):
+        human_r_crse = np.zeros(len(event_id_list), )
+        human_r_fine = np.zeros(len(event_id_list), )
+        for i, event_id in enumerate(event_id_list):
+            human_r_crse[i] = np.mean(self.get_human_ceiling(event_id, 'coarse'))
+            human_r_fine[i] = np.mean(self.get_human_ceiling(event_id, 'fine'))
+        return human_r_crse, human_r_fine
 
 
 if __name__ == "__main__":
@@ -117,11 +124,7 @@ if __name__ == "__main__":
     fsubdf = hb.get_subdf(event_id, 'fine')
     fsubdf.head()
 
-    human_r_crse = np.zeros(tvs.n_valid_files, )
-    human_r_fine = np.zeros(tvs.n_valid_files, )
-    for i, val_id in enumerate(tvs.valid_ids):
-        human_r_crse[i] = np.mean(hb.get_human_ceiling(val_id, 'coarse'))
-        human_r_fine[i] = np.mean(hb.get_human_ceiling(val_id, 'fine'))
+    human_r_crse, human_r_fine = hb.get_average_human_ceiling(tvs.valid_ids)
 
     f, axes = plt.subplots(2, 1, figsize=(5, 8), sharex=True)
     sns.violinplot(human_r_crse, orient='v', ax=axes[0])
