@@ -19,7 +19,7 @@ do
             do
               for use_shortcut in 0 1
               do
-                for gen_grad in 1.5 2.5 3.5
+                for gen_grad in 4.5 5.5 6.5 
                   do
                     for pe_tracker_size in 256
                     do
