@@ -20,7 +20,6 @@ class Parameters():
         subj_id = 0,
         dim_input = 30,
         dim_output = 30,
-
         verbose=True,
         log_root = '../log',
         exp_name = 'testing',
@@ -59,9 +58,6 @@ class Parameters():
         self.log_dir = os.path.join(self.log_root, f'{exp_name}-ckpt', sub_dirs)
         self.fig_dir = os.path.join(self.log_root, f'{exp_name}-fig', sub_dirs)
         self.result_dir = os.path.join(self.log_root, f'{exp_name}-result', sub_dirs)
-        print(self.log_dir)
-        print(self.fig_dir)
-        print(self.result_dir)
         self.gen_log_dirs(verbose=verbose)
 
     def gen_log_dirs(self, verbose=False):
@@ -73,6 +69,8 @@ class Parameters():
 def mkdir_ifdne(dir_name, verbose=False):
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
+        if verbose:
+            print(f'Dir created: {dir_name}')
     else:
         if verbose:
             print(f'Dir exist: {dir_name}')

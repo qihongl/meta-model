@@ -257,6 +257,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     return log_cid, log_cid_fi, log_cid_sc, loss_by_events, log_reset_h, log_use_sc, log_pe_peak
 
 
+
 '''evaluate loss on the validation set'''
 results_tr = run_model(tvs.train_ids, p=p, train_mode=True)
 [log_cid_tr, log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr, log_use_sc_tr, log_pe_peak_tr] = results_tr
@@ -312,8 +313,8 @@ log_cid = log_cid_tr + log_cid_te
 n_ctx_over_time_fi = compute_n_ctx_over_time(log_cid_fi)
 n_ctx_over_time = compute_n_ctx_over_time(log_cid)
 f, ax = plt.subplots(1,1, figsize=(5,4))
-ax.plot(n_ctx_over_time_fi, label = 'full inference')
-ax.plot(n_ctx_over_time, label = 'actual')
+ax.plot(n_ctx_over_time_fi)
+# ax.plot(n_ctx_over_time, label = 'actual')
 ax.set_xlabel('training video id')
 ax.set_ylabel('# of contexts inferred')
 ax.axvline(len(log_cid_fi_tr), label='start testing', ls='--', color='grey')
@@ -749,7 +750,11 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 log_cid_sc_cat = np.concatenate(log_cid_sc_tr+log_cid_sc_te)
 log_cid_fi_cat = np.concatenate(log_cid_fi_tr+log_cid_fi_te)
 log_cid_sc_cat[np.isnan(log_cid_sc_cat)] = -1
-cfmat = confusion_matrix(log_cid_fi_cat, log_cid_sc_cat, normalize='true')
+
+log_cid_sc_cat_nonull = log_cid_sc_cat[log_cid_sc_cat != -1]
+log_cid_fi_cat_nonull = log_cid_fi_cat[log_cid_sc_cat != -1]
+
+cfmat = confusion_matrix(log_cid_fi_cat_nonull, log_cid_sc_cat_nonull, normalize='true')
 
 f, ax = plt.subplots(1,1, figsize=(12,10))
 sns.heatmap(cfmat, cmap='viridis', square=True)
