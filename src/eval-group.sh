@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -t 23:55:00
+#SBATCH -t 3:55:00
 #SBATCH -c 1
-#SBATCH --mem-per-cpu 8G
+#SBATCH --mem-per-cpu 16G
 
-#SBATCH --job-name=meta-run-cgru
+#SBATCH --job-name=meta-eval
 #SBATCH --output slurm_log/%j.log
 
 LOGROOT=/tigress/qlu/logs/meta-model/log
