@@ -11,7 +11,7 @@ DT=$(date +%Y-%m-%d)
 
 echo $(date)
 
-srun python -u train.py \
+srun python -u eval-group.py \
     --lr ${1} \
     --update_freq ${2} \
     --dim_hidden ${3} \
