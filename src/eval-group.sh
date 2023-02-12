@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -t 3:55:00
 #SBATCH -c 1
-#SBATCH --mem-per-cpu 16G
+#SBATCH --mem-per-cpu 8G
 
 #SBATCH --job-name=meta-eval
 #SBATCH --output slurm_log/%j.log
