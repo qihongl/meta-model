@@ -525,20 +525,20 @@ for subj_id, subj_id_ in enumerate(subj_ids):
 
 
 # group level mean and se
-mi_g_mu, mi_g_se = compute_stats(np.mean(mi_g,axis=1))
-mi_ob_g_mu, mi_ob_g_se = compute_stats(mi_ob_g)
+mi_g_mu, mi_g_se = compute_stats(np.mean(mi_g,axis=1), omitnan=True)
+mi_ob_g_mu, mi_ob_g_se = compute_stats(mi_ob_g, omitnan=True)
 
-r_m_crse_g_mu, r_m_crse_g_se = compute_stats(np.mean(r_m_crse_g, axis=1))
-r_m_fine_g_mu, r_m_fine_g_se = compute_stats(np.mean(r_m_fine_g, axis=1))
+r_m_crse_g_mu, r_m_crse_g_se = compute_stats(np.mean(r_m_crse_g, axis=1), omitnan=True)
+r_m_fine_g_mu, r_m_fine_g_se = compute_stats(np.mean(r_m_fine_g, axis=1), omitnan=True)
 
-r_ob_c_g_mu, r_ob_c_g_se = compute_stats(r_ob_c_g)
-r_ob_f_g_mu, r_ob_f_g_se = compute_stats(r_ob_f_g)
+r_ob_c_g_mu, r_ob_c_g_se = compute_stats(r_ob_c_g, omitnan=True)
+r_ob_f_g_mu, r_ob_f_g_se = compute_stats(r_ob_f_g, omitnan=True)
 
-sc_acc_tr_g_mu, sc_acc_tr_g_se = compute_stats(sc_acc_tr_mu_g)
-sc_acc_te_g_mu, sc_acc_te_g_se = compute_stats(sc_acc_te_mu_g)
+sc_acc_tr_g_mu, sc_acc_tr_g_se = compute_stats(sc_acc_tr_mu_g, omitnan=True)
+sc_acc_te_g_mu, sc_acc_te_g_se = compute_stats(sc_acc_te_mu_g, omitnan=True)
 
-sc_pnull_tr_g_mu, sc_pnull_tr_g_se = compute_stats(sc_pnull_tr_mu_g)
-sc_pnull_te_g_mu, sc_pnull_te_g_se = compute_stats(sc_pnull_te_mu_g)
+sc_pnull_tr_g_mu, sc_pnull_tr_g_se = compute_stats(sc_pnull_tr_mu_g, omitnan=True)
+sc_pnull_te_g_mu, sc_pnull_te_g_se = compute_stats(sc_pnull_te_mu_g, omitnan=True)
 
 
 '''plot the data '''
