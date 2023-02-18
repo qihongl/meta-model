@@ -139,7 +139,7 @@ agent = Agent(
 optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 # context management
 sc = SimpleContext(p.dim_context, p.stickiness, p.try_reset_h)
-c_id, c_vec = sc.init_context()
+# c_id, c_vec = sc.init_context()
 # init the shortcut
 ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad)
 
@@ -152,9 +152,11 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     if train_mode:
         save_weights = True
         learning = True
+        _, c_vec = sc.init_context()
     else:
         save_weights = True
         learning = True
+        c_vec = sc.context[0]
 
     # prealooc
     loss_by_events = [[] for _ in range(len(event_id_list))]
@@ -188,6 +190,24 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         loss = 0
         h_t = agent.get_init_states()
         for t in tqdm(range(T)):
+            # forward
+            [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
+            # record losses
+            loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
+            loss += loss_it
+            loss_by_events[i].append(loss_it.clone().detach())
+
+            # if use shortcut, decide whether to turn off shortcut based on PE
+            if use_shortcut and t > 0 and log_use_sc_i[t-1]:
+                if pe_tracker.peaked(log_cid_sc_i[t-1], n_pe_std, to_np(loss_it)):
+                    # use_shortcut_t = False
+                    match_tracker.reinit_ctx_buffer(log_cid_sc_i[t-1])
+                    log_pe_peak_i[t] = True
+                    # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut, turn off ctx {log_cid_sc_i[t]}')
+            else:
+                # if use full inference, record full inf PE as the baseline
+                pe_tracker.add(log_cid_fi_i[t-1], to_np(loss_by_events[i][t-1]))
+
             # short cut inference
             log_cid_sc_i[t] = ssc.predict(to_np(X[t]))
             # context - full inference
@@ -200,29 +220,16 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 log_cid_i[t] = log_cid_sc_i[t]
                 # print(f'use short cut on ctx {log_cid_sc_i[t]}')
             else:
-                # if use full inference, add experience to the shortcut buffer
+                # if use full inference...
                 log_cid_i[t] = log_cid_fi_i[t]
+                # if reset h is the best, then reset it
                 h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
+                # add experience to the shortcut buffer, and record match
                 ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
                 match_tracker.add(log_cid_sc_i[t], match_it)
-            # forward
+            # get the context vector
             c_vec = sc.context[log_cid_i[t]]
-            [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
-            # record losses
-            loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
-            loss += loss_it
-            loss_by_events[i].append(loss_it.clone().detach())
 
-            # if use shortcut, decide whether to turn off shortcut based on PE
-            if use_shortcut and log_use_sc_i[t]:
-                if pe_tracker.peaked(log_cid_sc_i[t], n_pe_std, to_np(loss_it)):
-                    # use_shortcut_t = False
-                    match_tracker.reinit_ctx_buffer(log_cid_sc_i[t])
-                    log_pe_peak_i[t] = True
-                    # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut, turn off ctx {log_cid_sc_i[t]}')
-            else:
-                # if use full inference, record full inf PE as the baseline
-                pe_tracker.add(log_cid_fi_i[t], to_np(loss_it))
 
             # update weights for every other t time points
             if learning and t % update_freq == 0:
@@ -257,12 +264,12 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     return log_cid, log_cid_fi, log_cid_sc, loss_by_events, log_reset_h, log_use_sc, log_pe_peak
 
 
-
 '''evaluate loss on the validation set'''
 results_tr = run_model(tvs.train_ids, p=p, train_mode=True)
 [log_cid_tr, log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr, log_use_sc_tr, log_pe_peak_tr] = results_tr
 results_te = run_model(tvs.valid_ids, p=p, train_mode=False)
 [log_cid_te, log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te, log_use_sc_te, log_pe_peak_te] = results_te
+
 
 '''plot the data '''
 # plot loss by valid event
@@ -537,9 +544,10 @@ for i, event_id in enumerate(event_id_list):
         axes[1].axvline(mb, ls=ls, color=color, label=label)
 
     for j, pe_peak_loc in enumerate(pe_peak_locs):
+        if pe_peak_loc > len(chb): continue
         label = 'shortcut PE peak' if j == 0 else None
-        axes[0].axvline(mb, ls='-.', color='red', label=label)
-        axes[1].axvline(mb, ls='-.', color='red', label=label)
+        axes[0].scatter(pe_peak_loc, 0, marker='x', color='red', label=label)
+        axes[1].scatter(pe_peak_loc, 0, marker='x', color='red', label=label)
 
     assert len(chb) == len(model_ctx_bound_vec_c)
     assert len(fhb) == len(model_ctx_bound_vec_f)
@@ -769,6 +777,22 @@ ax.set_ylabel('% match shortcut vs full inference')
 ax.set_xlabel('context id')
 sns.despine()
 fig_path = os.path.join(p.fig_dir, f'sc-confusion-mat-diag.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+'''percent shortcut activation '''
+log_use_sc_te_mu, log_use_sc_te_se = compute_stats([np.mean(x) for x in log_use_sc_te])
+
+width = .7
+f, ax = plt.subplots(1,1, figsize=(2.5, 4))
+xticks = range(1)
+ax.bar(x=xticks, width=width, height=[log_use_sc_te_mu], yerr=[log_use_sc_te_se])
+ax.set_xticks([])
+ax.set_title('percent shortcut activation')
+ax.set_ylabel('%')
+ax.set_ylim([0,1])
+# ax.legend()
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'sc-p-act.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
