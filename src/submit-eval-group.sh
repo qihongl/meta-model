@@ -24,7 +24,7 @@ do
                   do
                     for n_pe_std in 3
                     do
-                    sbatch train.sh \
+                    sbatch eval-group.sh \
                          ${subj_id} \
                          ${lr} \
                          ${update_freq} \
@@ -46,7 +46,7 @@ do
             done
 
             use_shortcut=0
-            sbatch train.sh \
+            sbatch eval-group.sh \
                  ${subj_id} \
                  ${lr} \
                  ${update_freq} \
