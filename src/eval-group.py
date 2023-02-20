@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-
+import dabest
+from scipy.stats import norm
 from pathlib import Path
 from itertools import islice
 from tqdm import tqdm
@@ -668,18 +668,100 @@ f.tight_layout()
 fig_path = os.path.join(fig_dir, f'bound-r-f-inloop.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
-
 width = .7
 f, ax = plt.subplots(1,1, figsize=(4.5, 4))
 xticks = range(2)
 ax.bar(x=xticks, width=width, height=[sc_acc_tr_g_mu, sc_acc_te_g_mu], yerr=[sc_acc_tr_g_se, sc_acc_te_g_se], label='match with full inference')
 ax.bar(x=xticks, width=width, height=[sc_pnull_tr_g_mu, sc_pnull_te_g_mu], yerr=[sc_pnull_tr_g_se, sc_pnull_te_g_se], bottom=[sc_acc_tr_g_mu, sc_acc_te_g_mu], label='null response')
+ax.bar(x=xticks, width=width, height=[1-sc_acc_tr_g_mu-sc_pnull_tr_g_mu, 1-sc_acc_te_g_mu-sc_pnull_te_g_mu], bottom=[sc_acc_tr_g_mu+sc_pnull_tr_g_mu, sc_acc_te_g_mu+sc_pnull_te_g_mu], label='mismatch', color=sns.color_palette()[3])
 ax.set_xticks(xticks)
 ax.set_xticklabels(['train', 'validation'])
 ax.set_title('short cut performance')
 ax.set_ylabel('%')
 ax.set_ylim([0,1])
-ax.legend()
+# ax.legend()
+# Shrink current axis by 20%
+box = ax.get_position()
+ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+# Put a legend to the right of the current axis
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 sns.despine()
 fig_path = os.path.join(fig_dir, f'sc-acc.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+
+
+def plot_dabest(perm_vals, observed_vals, ax, ylabel, human_baseline=None, use_slope_plot=True, float_contrast=False):
+    assert len(perm_vals) == len(observed_vals)
+    if use_slope_plot:
+        paired=True
+        id_col='ids'
+    else:
+        paired=False
+        id_col=None
+
+    n_data = len(perm_vals)
+    data_dict = {
+        'permutation': perm_vals, 'observed': observed_vals,
+    }
+
+    df = pd.DataFrame(data_dict)
+    df['ids'] = np.arange(n_data)
+
+    # Load the data into dabest
+    dabest_data = dabest.load(
+        data=df, idx=list(data_dict.keys()),
+        paired=paired, id_col=id_col,
+    )
+    dabest_data.mean_diff.plot(swarm_label=ylabel, ax=ax, float_contrast=float_contrast)
+
+    if human_baseline is not None:
+        ax.axhline(human_baseline, ls='--', color='red', label='human baseline')
+        ax.set_ylim([None, human_baseline + human_baseline *.1])
+
+    return f, ax
+
+f, ax = plt.subplots(1,1, figsize=(3, 8))
+ax = plot_dabest(np.mean(mi_perm_g,axis=1), mi_ob_g, ax=ax, ylabel='mutual infomation', human_baseline=None, use_slope_plot=True)
+fig_path = os.path.join(fig_dir, f'slope-mi.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+
+f, ax = plt.subplots(1,1, figsize=(3, 8))
+ax = plot_dabest(np.mean(r_perm_c_g,axis=1), r_ob_c_g, ax=ax, ylabel='point biserial correlation', human_baseline=np.nanmean(human_r_crse))
+fig_path = os.path.join(fig_dir, f'slope-r-c.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+f, ax = plt.subplots(1,1, figsize=(3, 8))
+ax = plot_dabest(np.mean(r_perm_f_g,axis=1), r_ob_f_g, ax=ax, ylabel='point biserial correlation', human_baseline=np.nanmean(human_r_fine))
+fig_path = os.path.join(fig_dir, f'slope-r-f.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+
+def violin_obs_perm_diff(perm_vals, obs_vals, ax=ax):
+    n_std_to_mu = np.zeros(n_subjs, )
+    for i in range(n_subjs):
+        mu, sd = norm.fit(perm_vals[i])
+        n_std_to_mu[i] = (obs_vals[i] - mu) / sd
+    sns.violinplot(n_std_to_mu,ax=ax)
+    ax.set_xticks([])
+    ax.set_ylabel('# of stds')
+    ax.set_title('distance to mean of \nthe permutation distribution')
+    ax.axhline(0, ls='--', color='grey')
+    sns.despine()
+    return ax
+
+f, ax = plt.subplots(1,1, figsize=(3, 4))
+ax = violin_obs_perm_diff(mi_perm_g, mi_ob_g, ax=ax)
+fig_path = os.path.join(fig_dir, f'n-std-perm-mi.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+f, ax = plt.subplots(1,1, figsize=(3, 4))
+ax = violin_obs_perm_diff(r_perm_c_g, r_ob_c_g, ax=ax)
+fig_path = os.path.join(fig_dir, f'n-std-r-c.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+f, ax = plt.subplots(1,1, figsize=(3, 4))
+ax = violin_obs_perm_diff(r_perm_f_g, r_ob_f_g, ax=ax)
+fig_path = os.path.join(fig_dir, f'n-std-r-f.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
