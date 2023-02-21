@@ -366,6 +366,9 @@ sc_pnull_tr_mu_g, sc_pnull_te_mu_g = [None] * n_subjs, [None] * n_subjs
 sc_acc_tr_mu_g, sc_acc_te_mu_g = [None] * n_subjs, [None] * n_subjs
 cfmat_g = [None] * n_subjs
 
+p_use_sc_te_g = [None] * n_subjs
+p_use_sc_tr_g = [None] * n_subjs
+
 mi_g = np.zeros((n_subjs, len(event_id_list)))
 r_m_crse_g = np.zeros((n_subjs, len(event_id_list)))
 r_m_fine_g = np.zeros((n_subjs, len(event_id_list)))
