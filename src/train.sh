@@ -19,13 +19,14 @@ srun python -u train.py \
     --dim_context ${5} \
     --ctx_wt ${6} \
     --stickiness ${7} \
-    --lik_softmax_beta ${8} \
-    --try_reset_h ${9} \
-    --use_shortcut ${10} \
-    --gen_grad ${11} \
-    --pe_tracker_size ${12} \
-    --match_tracker_size ${13} \
-    --n_pe_std ${14} \
+    --concentration ${8} \
+    --lik_softmax_beta ${9} \
+    --try_reset_h ${10} \
+    --use_shortcut ${11} \
+    --gen_grad ${12} \
+    --pe_tracker_size ${13} \
+    --match_tracker_size ${14} \
+    --n_pe_std ${15} \
     --exp_name $DT \
     --log_root $LOGROOT
 

@@ -8,6 +8,7 @@ class Parameters():
         dim_context = 128,
         ctx_wt = .5,
         stickiness = 1,
+        concentration = 1,
         gen_grad = 5,
         lik_softmax_beta=.33,
         try_reset_h=False,
@@ -39,6 +40,7 @@ class Parameters():
         # symbolic model params
         self.ctx_wt = ctx_wt
         self.stickiness = stickiness
+        self.concentration = concentration
         self.lik_softmax_beta = lik_softmax_beta
         self.try_reset_h = try_reset_h
         # short cut param
@@ -54,7 +56,7 @@ class Parameters():
         # sub_dirs
         self.exp_name = exp_name
         self.log_root = log_root
-        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-try_reset_h-{try_reset_h}-beta-{lik_softmax_beta}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/mtsize-{match_tracker_size}-npe-{n_pe_std}-petsize-{pe_tracker_size}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
+        sub_dirs = f'dH-{dim_hidden}-dC-{dim_context}-wC-{ctx_wt}/s-{stickiness}-c-{concentration}-beta-{lik_softmax_beta}/try_reset_h-{try_reset_h}/use_shortcut-{use_shortcut}-gen_grad-{gen_grad}/mtsize-{match_tracker_size}-npe-{n_pe_std}-petsize-{pe_tracker_size}/lr-{lr}-update_freq-{update_freq}/subj_id-{subj_id}/'
         self.log_dir = os.path.join(self.log_root, f'{exp_name}-ckpt', sub_dirs)
         self.fig_dir = os.path.join(self.log_root, f'{exp_name}-fig', sub_dirs)
         self.result_dir = os.path.join(self.log_root, f'{exp_name}-result', sub_dirs)

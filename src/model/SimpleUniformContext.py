@@ -3,7 +3,7 @@ import numpy as np
 
 
 
-class SimpleContext():
+class SimpleUniformContext():
 
     def __init__(self, context_dim, pseudo_count=10, stickiness=10):
         self.context_dim = context_dim
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     context_dim=32
     pseudo_count=3
-    sc = SimpleContext(context_dim=context_dim, pseudo_count=pseudo_count)
+    sc = SimpleUniformContext(context_dim=context_dim, pseudo_count=pseudo_count)
 
     sc.counts
     c_it, ctx_it = sc.add_new_context()

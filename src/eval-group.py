@@ -23,7 +23,7 @@ from sklearn.metrics import confusion_matrix, mutual_info_score
 from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
-from model import SimpleContext, SimpleShortcut, SimpleTracker
+# from model import SimpleContext, SimpleShortcut, SimpleTracker
 from utils import ID2CHAPTER
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \
@@ -251,6 +251,7 @@ parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--stickiness', default=4, type=float)
+parser.add_argument('--concentration', default=1, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
 parser.add_argument('--pe_tracker_size', default=256, type=int)
@@ -272,6 +273,7 @@ use_shortcut = bool(args.use_shortcut)
 gen_grad = args.gen_grad
 ctx_wt = args.ctx_wt
 stickiness = args.stickiness
+concentration = args.concentration
 lik_softmax_beta = args.lik_softmax_beta
 try_reset_h = bool(args.try_reset_h)
 pe_tracker_size = args.pe_tracker_size
@@ -279,26 +281,6 @@ match_tracker_size = args.match_tracker_size
 n_pe_std = args.n_pe_std
 exp_name = args.exp_name
 log_root = args.log_root
-
-# # define training params
-# exp_name = '2023-02-06'
-# lr = 1e-3
-# update_freq = 16
-# # model param
-# dim_hidden = 16
-# dim_context = 256
-# # shortcut params
-# use_shortcut = False
-# gen_grad = 2.5
-# # full inference param
-# ctx_wt = .5
-# stickiness = 1.5
-# lik_softmax_beta = .33
-# try_reset_h = False
-# # handoff param
-# pe_tracker_size = 256
-# match_tracker_size = 4
-# n_pe_std = 3
 
 # set param to create logdir
 subj_id = 0
@@ -334,7 +316,7 @@ for subj_id in subj_ids:
     p = Parameters(
         dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
         stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
-        subj_id = subj_id, lik_softmax_beta=lik_softmax_beta,
+        subj_id = subj_id, lik_softmax_beta=lik_softmax_beta, concentration=concentration,
         try_reset_h = try_reset_h, use_shortcut=use_shortcut,
         pe_tracker_size = pe_tracker_size, match_tracker_size = match_tracker_size, n_pe_std= n_pe_std,
         log_root=log_root, exp_name=exp_name, verbose=False
@@ -380,7 +362,7 @@ for subj_id, subj_id_ in enumerate(subj_ids):
     p = Parameters(
         dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
         stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
-        subj_id = subj_id_, lik_softmax_beta=lik_softmax_beta,
+        subj_id = subj_id_, lik_softmax_beta=lik_softmax_beta, concentration=concentration,
         try_reset_h = try_reset_h, use_shortcut=use_shortcut,
         pe_tracker_size = pe_tracker_size, match_tracker_size = match_tracker_size, n_pe_std= n_pe_std,
         log_root=log_root, exp_name=exp_name, verbose=False

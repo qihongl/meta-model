@@ -3,7 +3,7 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for subj_id in {0..20}
+for subj_id in {0..7}
 do
   for lr in 1e-3
   do
@@ -13,58 +13,63 @@ do
       do
         for dim_hidden in 16
         do
-          for stickiness in 2 3 4
+          for stickiness in 1 2 4
           do
-            for try_reset_h in 0
+            for concentration in .1 .5 1
             do
-              use_shortcut=1
-              for gen_grad in 1.5 3.5 5.5
-                do
-                  for pe_tracker_size in 256
+              for try_reset_h in 0
+              do
+                use_shortcut=1
+                for gen_grad in 1.5 3.5 5.5
                   do
-                    for match_tracker_size in 4
+                    for pe_tracker_size in 256
                     do
-                      for n_pe_std in 3
+                      for match_tracker_size in 4
                       do
-                      sbatch train.sh \
-                           ${subj_id} \
-                           ${lr} \
-                           ${update_freq} \
-                           ${dim_hidden} \
-                           ${dim_context} \
-                           ${ctx_wt} \
-                           ${stickiness} \
-                           ${lik_softmax_beta} \
-                           ${try_reset_h} \
-                           ${use_shortcut} \
-                           ${gen_grad} \
-                           ${pe_tracker_size} \
-                           ${match_tracker_size} \
-                           ${n_pe_std} \
-                           ${exp_name}
+                        for n_pe_std in 3
+                        do
+                        sbatch train.sh \
+                             ${subj_id} \
+                             ${lr} \
+                             ${update_freq} \
+                             ${dim_hidden} \
+                             ${dim_context} \
+                             ${ctx_wt} \
+                             ${stickiness} \
+                             ${concentration} \
+                             ${lik_softmax_beta} \
+                             ${try_reset_h} \
+                             ${use_shortcut} \
+                             ${gen_grad} \
+                             ${pe_tracker_size} \
+                             ${match_tracker_size} \
+                             ${n_pe_std} \
+                             ${exp_name}
+                       done
                      done
                    done
-                 done
+                done
+
+                use_shortcut=0
+                sbatch train.sh \
+                     ${subj_id} \
+                     ${lr} \
+                     ${update_freq} \
+                     ${dim_hidden} \
+                     ${dim_context} \
+                     ${ctx_wt} \
+                     ${stickiness} \
+                     ${concentration} \
+                     ${lik_softmax_beta} \
+                     ${try_reset_h} \
+                     ${use_shortcut} \
+                     ${gen_grad} \
+                     ${pe_tracker_size} \
+                     ${match_tracker_size} \
+                     ${n_pe_std} \
+                     ${exp_name}
+
               done
-
-              use_shortcut=0
-              sbatch train.sh \
-                   ${subj_id} \
-                   ${lr} \
-                   ${update_freq} \
-                   ${dim_hidden} \
-                   ${dim_context} \
-                   ${ctx_wt} \
-                   ${stickiness} \
-                   ${lik_softmax_beta} \
-                   ${try_reset_h} \
-                   ${use_shortcut} \
-                   ${gen_grad} \
-                   ${pe_tracker_size} \
-                   ${match_tracker_size} \
-                   ${n_pe_std} \
-                   ${exp_name}
-
             done
           done
         done

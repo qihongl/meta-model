@@ -43,6 +43,7 @@ parser.add_argument('--dim_context', default=128, type=int)
 parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
+parser.add_argument('--concentration', default=1, type=float)
 parser.add_argument('--stickiness', default=4, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
@@ -66,6 +67,7 @@ use_shortcut = bool(args.use_shortcut)
 gen_grad = args.gen_grad
 ctx_wt = args.ctx_wt
 stickiness = args.stickiness
+concentration = args.concentration
 lik_softmax_beta = args.lik_softmax_beta
 try_reset_h = bool(args.try_reset_h)
 pe_tracker_size = args.pe_tracker_size
@@ -90,6 +92,7 @@ log_root = args.log_root
 # gen_grad = 3.0
 # # full inference param
 # ctx_wt = .5
+# concentration = 1.0
 # stickiness = 3.0
 # lik_softmax_beta = .33
 # try_reset_h = False
@@ -108,11 +111,11 @@ evlab = EventLabel()
 hb = HumanBondaries()
 p = Parameters(
     dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
-    stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
-    subj_id = subj_id, lik_softmax_beta=lik_softmax_beta,
+    stickiness = stickiness, concentration=concentration,
+    gen_grad=gen_grad, lr = lr, update_freq = update_freq, lik_softmax_beta=lik_softmax_beta,
     try_reset_h = try_reset_h, use_shortcut=use_shortcut,
     pe_tracker_size = pe_tracker_size, match_tracker_size = match_tracker_size, n_pe_std= n_pe_std,
-    log_root=log_root, exp_name=exp_name
+    log_root=log_root, exp_name=exp_name, subj_id = subj_id,
 )
 
 
@@ -138,7 +141,7 @@ agent = Agent(
 )
 optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 # context management
-sc = SimpleContext(p.dim_context, p.stickiness, p.try_reset_h)
+sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
 ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad)

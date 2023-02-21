@@ -3,9 +3,10 @@ import numpy as np
 
 class SimpleContext():
 
-    def __init__(self, context_dim, stickiness, try_reset_h):
+    def __init__(self, context_dim, stickiness, concentration, try_reset_h):
         self.context_dim = context_dim
         self.stickiness = stickiness
+        self.concentration = concentration
         self.try_reset_h = try_reset_h
         self.prev_cluster_id = None
         self.n_context = None
@@ -15,6 +16,7 @@ class SimpleContext():
         return dict({
             'context_dim': self.context_dim,
             'stickiness': self.stickiness,
+            'concentration': self.concentration,
             'try_reset_h': self.try_reset_h,
             'prev_cluster_id': self.prev_cluster_id,
             'n_context': self.n_context,
@@ -25,6 +27,7 @@ class SimpleContext():
         # make sure the loaded params match
         assert self.context_dim == input_dict['context_dim']
         assert self.stickiness == input_dict['stickiness']
+        assert self.concentration == input_dict['concentration']
         assert self.try_reset_h == input_dict['try_reset_h']
         self.context = input_dict['context']
         self.n_context = len(self.context)
@@ -54,6 +57,7 @@ class SimpleContext():
 
     def compute_posterior(self, likelihood, verbose=False):
         sticky_uniform_vec = np.ones(len(likelihood),)
+        sticky_uniform_vec[0] = self.concentration
         if self.prev_cluster_id is not None:
             sticky_uniform_vec[self.prev_cluster_id] += self.stickiness
             # if try reset h then the last dim is the resetted context
@@ -113,9 +117,10 @@ if __name__ == "__main__":
     sns.set(style='white', palette='colorblind', context='poster')
 
     context_dim=32
-    penalty_new_context, stickiness = .5, .5
-
-    sc = SimpleContext(context_dim, penalty_new_context, stickiness)
+    stickiness = .5
+    concentration = 1
+    try_reset_h = 0
+    sc = SimpleContext(context_dim, stickiness, concentration, try_reset_h)
     sc.init_context()
     sc.to_dict()
     # c_it, ctx_it = sc.add_new_context()
