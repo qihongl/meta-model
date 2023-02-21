@@ -11,7 +11,7 @@ do
     do
       for dim_hidden in 16
       do
-        for stickiness in 1 2 3 4
+        for stickiness in 2 3 4
         do
           for try_reset_h in 0
           do

@@ -404,6 +404,9 @@ for subj_id, subj_id_ in enumerate(subj_ids):
 
     event_len_te_g[subj_id] = get_event_len(log_cid_te)
 
+    p_use_sc_te_g[subj_id], _ = compute_stats([np.mean(x) for x in log_use_sc_te])
+    p_use_sc_tr_g[subj_id], _ = compute_stats([np.mean(x) for x in log_use_sc_tr])
+
     '''correlation with human boundaries'''
 
     model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
@@ -540,6 +543,8 @@ sc_acc_te_g_mu, sc_acc_te_g_se = compute_stats(sc_acc_te_mu_g, omitnan=True)
 sc_pnull_tr_g_mu, sc_pnull_tr_g_se = compute_stats(sc_pnull_tr_mu_g, omitnan=True)
 sc_pnull_te_g_mu, sc_pnull_te_g_se = compute_stats(sc_pnull_te_mu_g, omitnan=True)
 
+p_use_sc_te_g_mu, p_use_sc_te_g_se = compute_stats(p_use_sc_te_g, omitnan=True)
+p_use_sc_tr_g_mu, p_use_sc_tr_g_se = compute_stats(p_use_sc_tr_g, omitnan=True)
 
 '''plot the data '''
 loss_mu, loss_se = compute_stats(np.mean(loss_mu_by_events_g,axis=0),axis=0)
@@ -556,11 +561,14 @@ fig_path = os.path.join(fig_dir, f'loss.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
+mean_n_ctx_at_the_end = np.mean([x[-1] for x in n_ctx_over_time_fi_g])
+
 f, ax = plt.subplots(1,1, figsize=(5,4))
 for x in n_ctx_over_time_fi_g:
     ax.plot(x)
 ax.set_xlabel('training video id')
-ax.set_ylabel('# of contexts inferred')
+ax.set_ylabel('# of LCs inferred')
+ax.set_title(f'mean # of LCs at the end = %.2f' % mean_n_ctx_at_the_end)
 ax.axvline(len(log_cid_fi_tr), label='start testing', ls='--', color='grey')
 ax.legend()
 sns.despine()
@@ -764,4 +772,20 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 f, ax = plt.subplots(1,1, figsize=(3, 4))
 ax = violin_obs_perm_diff(r_perm_f_g, r_ob_f_g, ax=ax)
 fig_path = os.path.join(fig_dir, f'n-std-r-f.png')
+f.savefig(fig_path, dpi=100, bbox_inches='tight')
+
+
+width = .7
+f, ax = plt.subplots(1,1, figsize=(4.5, 4))
+xticks = range(2)
+
+ax.bar(x=xticks, width=width, height=[p_use_sc_te_g_mu, p_use_sc_tr_g_mu], yerr=[p_use_sc_te_g_se, p_use_sc_tr_g_se])
+
+ax.set_xticks(['train', 'validation'])
+ax.set_title('percent shortcut activation')
+ax.set_ylabel('%')
+ax.set_ylim([0,1])
+# ax.legend()
+sns.despine()
+fig_path = os.path.join(p.fig_dir, f'sc-p-act.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
