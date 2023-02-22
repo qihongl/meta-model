@@ -15,7 +15,7 @@ do
         do
           for stickiness in 1 2 4
           do
-            for concentration in .1 .5 1
+            for concentration in .5 .75 1
             do
               for try_reset_h in 0
               do
