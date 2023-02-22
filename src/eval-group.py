@@ -763,10 +763,9 @@ f.savefig(fig_path, dpi=100, bbox_inches='tight')
 width = .7
 f, ax = plt.subplots(1,1, figsize=(4.5, 4))
 xticks = range(2)
-
 ax.bar(x=xticks, width=width, height=[p_use_sc_te_g_mu, p_use_sc_tr_g_mu], yerr=[p_use_sc_te_g_se, p_use_sc_tr_g_se])
-
-ax.set_xticks(['train', 'validation'])
+ax.set_xticks(xticks)
+ax.set_xticklabels(['train', 'validation'])
 ax.set_title('percent shortcut activation')
 ax.set_ylabel('%')
 ax.set_ylim([0,1])
