@@ -75,7 +75,7 @@ match_tracker_size = args.match_tracker_size
 n_pe_std = args.n_pe_std
 exp_name = args.exp_name
 log_root = args.log_root
-
+#
 # # training param
 # # exp_name = '2023-01-18'
 # exp_name = 'testing'
@@ -92,8 +92,8 @@ log_root = args.log_root
 # gen_grad = 3.0
 # # full inference param
 # ctx_wt = .5
-# concentration = 1.0
-# stickiness = 3.0
+# concentration = .5
+# stickiness = 1.0
 # lik_softmax_beta = .33
 # try_reset_h = False
 # # handoff param
@@ -341,14 +341,16 @@ for i in range(tvs.n_files):
     # check for the ith video, what context were used
     # ctx_used, counts = np.unique(log_cid_fi[i], return_counts=True)
     ctx_used, counts = np.unique(log_cid[i], return_counts=True)
+
     for ctx_id_i, count_i in zip(ctx_used, counts):
         ctx_usage[i, int(ctx_id_i)] += count_i
+    ctx_usage[i,:] /= len(log_cid[i])
 
 f, ax = plt.subplots(1,1, figsize=(12, 10))
 sns.heatmap(ctx_usage, cmap='viridis', ax=ax)
 ax.set_ylabel('video id (during learning)')
-ax.set_xlabel('inferred context id')
-ax.set_title('context use during learning')
+ax.set_xlabel('inferred latent cause id')
+ax.set_title('% latent cause used for each video during learning')
 fig_path = os.path.join(p.fig_dir, f'ctx-use.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 

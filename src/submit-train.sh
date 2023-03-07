@@ -3,15 +3,15 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for subj_id in {0..7}
+for subj_id in {0..15}
 do
   for lr in 1e-3
   do
-    for update_freq in 16
+    for update_freq in 4 8 16
     do
       for dim_context in 256
       do
-        for dim_hidden in 16
+        for dim_hidden in 16 32
         do
           for stickiness in 1 2 4
           do
