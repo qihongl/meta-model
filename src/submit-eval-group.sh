@@ -5,7 +5,7 @@ lik_softmax_beta=0.33
 
 for lr in 1e-3
 do
-  for update_freq in 16
+  for update_freq in 8 16
   do
     for dim_context in 256
     do
