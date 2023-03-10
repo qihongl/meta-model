@@ -287,7 +287,7 @@ subj_id = 0
 p = Parameters(
     dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
     stickiness = stickiness, gen_grad=gen_grad, lr = lr, update_freq = update_freq,
-    subj_id = subj_id, lik_softmax_beta=lik_softmax_beta,
+    subj_id = subj_id, lik_softmax_beta=lik_softmax_beta, concentration=concentration,
     try_reset_h = try_reset_h, use_shortcut=use_shortcut,
     pe_tracker_size = pe_tracker_size, match_tracker_size = match_tracker_size, n_pe_std= n_pe_std,
     log_root=log_root, exp_name=exp_name, verbose=False

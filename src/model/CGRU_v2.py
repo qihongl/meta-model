@@ -98,7 +98,7 @@ class CGRU_v2(nn.Module):
                 x_t, self.get_init_states(), to_pth(contexts[prev_context_id])
             )
             pe_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
-            # append the restarting PE at the end of the list 
+            # append the restarting PE at the end of the list
             pe = torch.cat([pe, pe_prev_restart.view(1)])
 
         # softmax the pe
