@@ -75,7 +75,7 @@ match_tracker_size = args.match_tracker_size
 n_pe_std = args.n_pe_std
 exp_name = args.exp_name
 log_root = args.log_root
-#
+
 # # training param
 # # exp_name = '2023-01-18'
 # exp_name = 'testing'
@@ -144,7 +144,7 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad)
+ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, use_model=True)
 
 pe_tracker = SimpleTracker(size=pe_tracker_size)
 match_tracker = SimpleTracker(size=match_tracker_size)
@@ -203,7 +203,6 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             # if use shortcut, decide whether to turn off shortcut based on PE
             if use_shortcut and t > 0 and log_use_sc_i[t-1]:
                 if pe_tracker.peaked(log_cid_sc_i[t-1], n_pe_std, to_np(loss_it)):
-                    # use_shortcut_t = False
                     match_tracker.reinit_ctx_buffer(log_cid_sc_i[t-1])
                     log_pe_peak_i[t] = True
                     # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut, turn off ctx {log_cid_sc_i[t]}')
@@ -233,12 +232,12 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             # get the context vector
             c_vec = sc.context[log_cid_i[t]]
 
-
             # update weights for every other t time points
             if learning and t % update_freq == 0:
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
                 optimizer.step()
+
         ssc.update_model()
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i

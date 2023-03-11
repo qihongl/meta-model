@@ -37,12 +37,15 @@ class SimpleShortcut():
             pass
         X = np.array(self.X)
         Y = np.array(self.Y)
+        # for each inferred latent cause
         for y in np.unique(Y):
             mask = y == Y
-            # save the cluster center
+            # if this inferred latent cause in not in the saved keys
             if y not in self.model.keys():
+                # add its center
                 self.model[y] = np.mean(X[mask,:], axis=0)
             else:
+                # otherwise, update its center
                 self.model[y] = self.model[y] * (1-self.lr) + np.mean(X[mask,:], axis=0) * self.lr
         self.flush_buffer()
 
@@ -69,7 +72,7 @@ class SimpleShortcut():
         return NULL_RESPONSE
 
     def cluster_based_predict(self, x_t):
-        if len(ssc.model) == 0:
+        if len(self.model) == 0:
             return NULL_RESPONSE
         cluster_ids = self.get_cluster_ids()
         distances = norm_1vec_vs_nvecs(x_t, self.get_cluster_centers())
@@ -104,24 +107,20 @@ if __name__ == "__main__":
 
     d = 2
     lr = .5
-    use_model = False
+    use_model = True
 
     ssc = SimpleShortcut(input_dim=input_dim, d=d, lr=lr, use_model=use_model)
 
-    models = []
     for i, (data_i, label_i) in enumerate(zip(data, labels)):
         ssc.add_data(data_i, label_i)
 
         if (i+1) % 20 == 0:
             ssc.update_model()
-            models.append(deepcopy(ssc.model))
 
-
-    f, ax = plt.subplots(1,1, figsize=(10,8))
-    alpha = .5
-    ax.scatter(data[:,0], data[:,1], c=[cpal[l] for l in labels], alpha=alpha)
-    sns.despine()
-
-    for model in models:
-        ax.scatter(x=model[0][0], y=model[0][1], marker='x', c=[cpal[0]])
-        ax.scatter(x=model[1][0], y=model[1][1], marker='x', c=[cpal[1]])
+            f, ax = plt.subplots(1,1, figsize=(10,8))
+            alpha = .5
+            ax.scatter(data[:i,0], data[:i,1], c=[cpal[l] for l in labels[:i]], alpha=alpha)
+            sns.despine()
+            ax.scatter(x=model[0][0], y=model[0][1], marker='x', c=[cpal[0]])
+            ax.scatter(x=model[1][0], y=model[1][1], marker='x', c=[cpal[1]])
+            ax.set_title(f'n samples = {i+1}')
