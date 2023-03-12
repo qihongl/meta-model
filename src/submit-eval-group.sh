@@ -5,11 +5,11 @@ lik_softmax_beta=0.33
 
 for lr in 1e-3
 do
-  for update_freq in 16 8
+  for update_freq in 16
   do
     for dim_context in 256
     do
-      for dim_hidden in 32
+      for dim_hidden in 16
       do
         for stickiness in 1 2 4
         do
