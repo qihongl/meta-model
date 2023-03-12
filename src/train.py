@@ -89,7 +89,7 @@ log_root = args.log_root
 # dim_context = 64
 # # shortcut params
 # use_shortcut = True
-# gen_grad = 3.0
+# gen_grad = 9.0
 # # full inference param
 # ctx_wt = .5
 # concentration = .5
@@ -144,7 +144,7 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, use_model=True)
+ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, use_model=False)
 
 pe_tracker = SimpleTracker(size=pe_tracker_size)
 match_tracker = SimpleTracker(size=match_tracker_size)
