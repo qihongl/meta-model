@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     d = 2
     lr = .5
-    use_model = True
+    use_model = False
 
     ssc = SimpleShortcut(input_dim=input_dim, d=d, lr=lr, use_model=use_model)
 
@@ -115,8 +115,9 @@ if __name__ == "__main__":
         ssc.add_data(data_i, label_i)
 
         if (i+1) % 20 == 0:
+            print(len(ssc.X))
             ssc.update_model()
-
+            print(len(ssc.X))
             f, ax = plt.subplots(1,1, figsize=(10,8))
             alpha = .5
             ax.scatter(data[:i,0], data[:i,1], c=[cpal[l] for l in labels[:i]], alpha=alpha)
