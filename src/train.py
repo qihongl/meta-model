@@ -238,7 +238,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 loss.backward(retain_graph=True)
                 optimizer.step()
 
-        ssc.update_model()
+        # ssc.update_model()
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
         log_cid_sc[i] = log_cid_sc_i
