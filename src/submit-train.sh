@@ -3,7 +3,7 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for subj_id in {0..19}
+for subj_id in {0..15}
 do
   for lr in 1e-3
   do
@@ -20,7 +20,7 @@ do
               for try_reset_h in 0
               do
                 use_shortcut=1
-                for gen_grad in 1.5 3.5 5.5
+                for gen_grad in .5 8 16
                   do
                     for pe_tracker_size in 256
                     do

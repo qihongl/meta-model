@@ -102,8 +102,8 @@ log_root = args.log_root
 # n_pe_std = 3
 
 # set seed
-np.random.seed(subj_id)
-torch.manual_seed(subj_id)
+np.random.seed(subj_id+777)
+torch.manual_seed(subj_id+777)
 # init util objects
 dl = DataLoader()
 tvs = TrainValidSplit()
