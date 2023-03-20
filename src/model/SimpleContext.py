@@ -73,26 +73,31 @@ class SimpleContext():
         assert np.all(likelihood) >= 0, f'invalid likelihood {likelihood}'
         reset_h = False
         posterior = self.compute_posterior(likelihood)
+        # find the max posterior context id
         max_pos_cid = np.argmax(posterior)
-        # get the context vector
+        # if infer a new LC
         if max_pos_cid == 0:
             max_pos_cid, max_pos_cvec = self.add_new_context()
-            if verbose >= 1:
-                print(f'adding the {self.n_context}-th context!')
-            if verbose >= 2:
-                print(f'lik: {likelihood}\nposterior: {posterior}')
-        elif self.try_reset_h and max_pos_cid == len(likelihood) - 1: # if it is the last index
-            max_pos_cid = self.prev_cluster_id
-            # max_pos_cvec = self.context[self.prev_cluster_id]
             reset_h = True
             if verbose >= 1:
-                print(f'restart the {max_pos_cid}-th context!')
-            if verbose >= 2:
-                print(f'lik: {likelihood}\nposterior: {posterior}')
+                print(f'adding the {self.n_context}-th context! RESET H!')
+
+        elif self.try_reset_h and max_pos_cid == len(likelihood) - 1: # if it is the last index
+            max_pos_cid = self.prev_cluster_id
+            reset_h = True
+            if verbose >= 1:
+                print(f'restart the {max_pos_cid}-th context! RESET H!')
+        elif max_pos_cid == self.prev_cluster_id:
+            if verbose >= 1:
+                print(f'keep using the {max_pos_cid}-th context!')
         else:
-            # max_pos_cvec = self.context[max_pos_cid]
-            if verbose >= 2:
-                print(f'posterior: {posterior} \t reusing {max_pos_cid}-th context!')
+            reset_h = True
+            if verbose >= 1:
+                print(f'switch to {max_pos_cid}-th context! RESET H!')
+
+        if verbose >= 2:
+            print(f'lik: {likelihood}\nposterior: {posterior}')
+
         # update the previous context
         self.prev_cluster_id = max_pos_cid
         return max_pos_cid, reset_h

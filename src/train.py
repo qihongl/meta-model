@@ -41,10 +41,10 @@ parser.add_argument('--update_freq', default=1, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
 parser.add_argument('--dim_context', default=128, type=int)
 parser.add_argument('--use_shortcut', default=1, type=float)
-parser.add_argument('--gen_grad', default=5, type=float)
+parser.add_argument('--gen_grad', default=1.5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--concentration', default=1, type=float)
-parser.add_argument('--stickiness', default=4, type=float)
+parser.add_argument('--stickiness', default=2, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
 parser.add_argument('--pe_tracker_size', default=256, type=int)
@@ -77,7 +77,6 @@ exp_name = args.exp_name
 log_root = args.log_root
 
 # # training param
-# # exp_name = '2023-01-18'
 # exp_name = 'testing'
 # log_root = '../log'
 # subj_id = 0
@@ -86,14 +85,14 @@ log_root = args.log_root
 # update_freq = 16
 # # model param
 # dim_hidden = 16
-# dim_context = 64
+# dim_context = 129
 # # shortcut params
-# use_shortcut = True
-# gen_grad = 9.0
+# use_shortcut = False
+# gen_grad = 1.0
 # # full inference param
 # ctx_wt = .5
-# concentration = .5
-# stickiness = 1.0
+# concentration = 1
+# stickiness = 2.0
 # lik_softmax_beta = .33
 # try_reset_h = False
 # # handoff param
@@ -212,23 +211,23 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
             # short cut inference
             log_cid_sc_i[t] = ssc.predict(to_np(X[t]))
-            # context - full inference
-            lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-            log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
-            # log if shortcut = full inf; and decide whether to use full inference or the shortcut
-            match_it = log_cid_fi_i[t] == log_cid_sc_i[t]
             log_use_sc_i[t] = match_tracker.use_shortcut_t(log_cid_sc_i[t])
+
             if use_shortcut and log_use_sc_i[t]:
                 log_cid_i[t] = log_cid_sc_i[t]
                 # print(f'use short cut on ctx {log_cid_sc_i[t]}')
             else:
+                # context - full inference
+                lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
+                log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=0)
                 # if use full inference...
                 log_cid_i[t] = log_cid_fi_i[t]
                 # if reset h is the best, then reset it
                 h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
                 # add experience to the shortcut buffer, and record match
                 ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
-                match_tracker.add(log_cid_sc_i[t], match_it)
+                match_tracker.add(log_cid_sc_i[t], log_cid_fi_i[t] == log_cid_sc_i[t])
+            # print(float(torch.sum(h_t)), log_reset_h_i[t])
             # get the context vector
             c_vec = sc.context[log_cid_i[t]]
 
