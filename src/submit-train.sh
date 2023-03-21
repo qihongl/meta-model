@@ -20,7 +20,7 @@ do
               for try_reset_h in 0
               do
                 use_shortcut=1
-                for gen_grad in 1 4 8
+                for gen_grad in .1 .5 8
                   do
                     for pe_tracker_size in 256
                     do
