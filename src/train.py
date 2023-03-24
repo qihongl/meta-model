@@ -158,6 +158,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     else:
         save_weights = True
         learning = True
+        c_vec = sc.context[sc.prev_cluster_id]
         # c_vec = sc.context[0]
 
     # prealooc
