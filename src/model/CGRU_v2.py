@@ -87,7 +87,7 @@ class CGRU_v2(nn.Module):
         # loop over all ctx ...
         n_contexts = len(contexts)
         pe = torch.zeros(n_contexts, )
-        [None] * (n_contexts)
+        # [None] * (n_contexts)
         for k in range(n_contexts):
             yhat_k = self.forward_nograd(x_t, h_t, to_pth(contexts[k]))
             pe[k] = self.criterion(y_t, torch.squeeze(yhat_k))

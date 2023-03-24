@@ -158,7 +158,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     else:
         save_weights = True
         learning = True
-        c_vec = sc.context[0]
+        # c_vec = sc.context[0]
 
     # prealooc
     loss_by_events = [[] for _ in range(len(event_id_list))]
@@ -174,7 +174,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         event_id = event_id_list[pi]
         # save data for every other k epochs
         if save_weights and i % save_freq == 0:
-            save_ckpt(i, p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
+            save_ckpt(i, p.log_dir, agent, optimizer, sc.to_dict(), verbose=0)
         print(f'Learning event {i} / {len(event_id_list)} - {event_id}')
         t_start = time.time()
         # get data
@@ -219,7 +219,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             else:
                 # context - full inference
                 lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-                log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=0)
+                log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
                 # if use full inference...
                 log_cid_i[t] = log_cid_fi_i[t]
                 # if reset h is the best, then reset it

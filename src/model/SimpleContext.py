@@ -1,5 +1,5 @@
 import numpy as np
-
+from copy import deepcopy
 
 class SimpleContext():
 
@@ -49,13 +49,24 @@ class SimpleContext():
         - random vectors are easy to get
         - random vectors are roughly orthogonal
         '''
-        new_context = self.random_vector()
-        # new_context = self.ortho_mat[self.n_context+1]
-        self.context.append(new_context)
+
+        # set ctx 0 to be the added context
+        self.context.append(self.context[0])
+        # find another vector as the novel context
+        novel_context = self.random_vector()
+        self.context[0] = novel_context
+
+        # self.context.append(novel_context)
         self.n_context += 1
-        return self.n_context, new_context
+        return self.n_context, self.context[0]
 
     def compute_posterior(self, likelihood, verbose=False):
+        assert np.all(likelihood) >= 0, f'likelihood must be non-neg, but received {likelihood}'
+        if self.try_reset_h:
+            assert len(likelihood) == self.n_context + 2, f'dim(likelihood) must = # contexts, but len(likelihood) = {len(likelihood)}, n_context = {self.n_context}'
+        else:
+            assert len(likelihood) == self.n_context + 1, f'dim(likelihood) must = # contexts, but len(likelihood) = {len(likelihood)}, n_context = {self.n_context}'
+
         sticky_uniform_vec = np.ones(len(likelihood),)
         sticky_uniform_vec[0] = self.concentration
         if self.prev_cluster_id is not None:
@@ -70,14 +81,13 @@ class SimpleContext():
 
     def assign_context(self, likelihood, verbose=1):
         # if np.any(likelihood) <= 0: print(likelihood)
-        assert np.all(likelihood) >= 0, f'invalid likelihood {likelihood}'
         reset_h = False
         posterior = self.compute_posterior(likelihood)
         # find the max posterior context id
         max_pos_cid = np.argmax(posterior)
         # if infer a new LC
         if max_pos_cid == 0:
-            max_pos_cid, max_pos_cvec = self.add_new_context()
+            max_pos_cid, _ = self.add_new_context()
             reset_h = True
             if verbose >= 1:
                 print(f'adding the {self.n_context}-th context! RESET H!')
@@ -88,14 +98,14 @@ class SimpleContext():
             if verbose >= 1:
                 print(f'restart the {max_pos_cid}-th context! RESET H!')
         elif max_pos_cid == self.prev_cluster_id:
-            if verbose >= 1:
+            if verbose >= 2:
                 print(f'keep using the {max_pos_cid}-th context!')
         else:
             reset_h = True
             if verbose >= 1:
                 print(f'switch to {max_pos_cid}-th context! RESET H!')
 
-        if verbose >= 2:
+        if verbose >= 3:
             print(f'lik: {likelihood}\nposterior: {posterior}')
 
         # update the previous context
@@ -111,6 +121,11 @@ class SimpleContext():
     def zero_vector(self):
         return np.zeros(self.context_dim,)
 
+    def __repr__(self):
+        repr = f'n context vectors: {self.n_context} \n'
+        repr += f'context vectors: \n{self.context}'
+        return repr
+
 
 
 if __name__ == "__main__":
@@ -121,16 +136,23 @@ if __name__ == "__main__":
     import sys
     sns.set(style='white', palette='colorblind', context='poster')
 
-    context_dim=32
+    context_dim= 16
     stickiness = .5
     concentration = 1
     try_reset_h = 0
     sc = SimpleContext(context_dim, stickiness, concentration, try_reset_h)
-    sc.init_context()
-    sc.to_dict()
-    # c_it, ctx_it = sc.add_new_context()
-    #
+    c_id, c_vec = sc.init_context()
+    print(sc.prev_cluster_id)
+
+
     # pe = np.array([.8, .3])
-    #
     # c_it = sc.assign_context(-pe, verbose=True)
     # sc.prev_cluster_id
+    # sc.context
+
+
+    # sc.assign_context
+    # sc.n_context
+    sc.assign_context([.1, .1, .1], verbose=2)
+    sc.assign_context([.2, .1], verbose=2)
+    sc.context
