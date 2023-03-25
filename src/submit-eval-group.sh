@@ -11,7 +11,7 @@ do
     do
       for dim_hidden in 16
       do
-        for stickiness in 1 2 4
+        for stickiness in 2 4 8
         do
           for concentration in .5 .75 1
           do
