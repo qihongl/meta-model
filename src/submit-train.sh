@@ -13,14 +13,14 @@ do
       do
         for dim_hidden in 16
         do
-          for stickiness in 16 32 64
+          for stickiness in 1 2 4
           do
             for concentration in .5 .75 1
             do
               for try_reset_h in 0
               do
                 use_shortcut=1
-                for gen_grad in .1 .5 8
+                for gen_grad in 1 2 4 
                   do
                     for pe_tracker_size in 256
                     do

@@ -44,7 +44,7 @@ parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=1.5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--concentration', default=1, type=float)
-parser.add_argument('--stickiness', default=2, type=float)
+parser.add_argument('--stickiness', default=8, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
 parser.add_argument('--pe_tracker_size', default=256, type=int)
@@ -238,7 +238,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 loss.backward(retain_graph=True)
                 optimizer.step()
 
-        # ssc.update_model()
+        ssc.update_model()
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
         log_cid_sc[i] = log_cid_sc_i
