@@ -85,7 +85,7 @@ log_root = args.log_root
 # update_freq = 16
 # # model param
 # dim_hidden = 16
-# dim_context = 129
+# dim_context = 128
 # # shortcut params
 # use_shortcut = False
 # gen_grad = 1.0
@@ -192,7 +192,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         # run the model over time
         loss = 0
         h_t = agent.get_init_states()
-        for t in tqdm(range(T)):
+        for t in range(T):
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
