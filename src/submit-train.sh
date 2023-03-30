@@ -7,20 +7,20 @@ for subj_id in {0..11}
 do
   for lr in 1e-3
   do
-    for update_freq in 8
+    for update_freq in 4
     do
       for dim_context in 256
       do
         for dim_hidden in 16
         do
-          for stickiness in 2 4
+          for stickiness in 2 4 8
           do
             for concentration in .5 .75 1
             do
               for try_reset_h in 0
               do
                 use_shortcut=1
-                for gen_grad in 1 2 4
+                for gen_grad in .5 1 4
                   do
                     for pe_tracker_size in 256
                     do
