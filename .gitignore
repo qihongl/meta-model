@@ -3,6 +3,7 @@ log/*
 old_data/*
 output-selected/*
 share/*
+*fig*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

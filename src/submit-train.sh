@@ -7,13 +7,13 @@ for subj_id in {0..11}
 do
   for lr in 1e-3
   do
-    for update_freq in 4
+    for update_freq in 2
     do
       for dim_context in 256
       do
         for dim_hidden in 16
         do
-          for stickiness in 8 32 128 
+          for stickiness in 64 128 512
           do
             for concentration in .5 .75 1
             do
