@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from collections import Counter
 from sklearn.metrics import confusion_matrix, mutual_info_score
-from scipy.stats import pointbiserialr, pearsonr
+# from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
 from model import SimpleContext, SimpleShortcut, SimpleTracker
@@ -143,7 +143,7 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, use_model=False)
+ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, lr=.25, use_model=True)
 
 pe_tracker = SimpleTracker(size=pe_tracker_size)
 match_tracker = SimpleTracker(size=match_tracker_size)

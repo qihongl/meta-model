@@ -137,7 +137,7 @@ if __name__ == "__main__":
     sns.set(style='white', palette='colorblind', context='poster')
 
     context_dim= 16
-    stickiness = .5
+    stickiness = 8
     concentration = 1
     try_reset_h = 0
     sc = SimpleContext(context_dim, stickiness, concentration, try_reset_h)
@@ -153,6 +153,8 @@ if __name__ == "__main__":
 
     # sc.assign_context
     # sc.n_context
-    sc.assign_context([.1, .1, .1], verbose=2)
-    sc.assign_context([.2, .1], verbose=2)
-    sc.context
+    sc.assign_context([.999, .1], verbose=3)
+    sc.assign_context([.1, .1, .1], verbose=3)
+
+    # sc.context
+# sc.context[sc.prev_cluster_id]
