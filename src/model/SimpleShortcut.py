@@ -27,7 +27,7 @@ class SimpleShortcut():
         self.X.extend(x_list)
         self.Y.extend(y_list)
 
-    def add_data(self, x_t, y_t, update_model=False):
+    def add_data(self, x_t, y_t):
         self.X.append(x_t)
         self.Y.append(y_t)
 

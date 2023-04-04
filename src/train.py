@@ -143,7 +143,7 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, lr=.25, use_model=True)
+ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, lr=.25, use_model=False)
 
 pe_tracker = SimpleTracker(size=pe_tracker_size)
 match_tracker = SimpleTracker(size=match_tracker_size)
@@ -238,7 +238,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 loss.backward(retain_graph=True)
                 optimizer.step()
 
-        ssc.update_model()
+        # ssc.update_model()
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
         log_cid_sc[i] = log_cid_sc_i
