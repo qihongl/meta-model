@@ -22,7 +22,7 @@ do
                 do
                   for pe_tracker_size in 256
                   do
-                    for match_tracker_size in 2 4
+                    for match_tracker_size in 4
                     do
                       for n_pe_std in 3
                       do
