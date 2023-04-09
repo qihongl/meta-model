@@ -13,9 +13,9 @@ do
       do
         for dim_hidden in 16
         do
-          for stickiness in 2 4
+          for stickiness in 4 8
           do
-            for concentration in .5 .75 1
+            for concentration in .75 1
             do
               for try_reset_h in 0
               do
@@ -24,7 +24,7 @@ do
                   do
                     for pe_tracker_size in 256
                     do
-                      for match_tracker_size in 4
+                      for match_tracker_size in 4 16
                       do
                         for n_pe_std in 3
                         do
