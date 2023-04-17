@@ -114,6 +114,7 @@ if __name__ == "__main__":
     for i, (data_i, label_i) in enumerate(zip(data, labels)):
         ssc.add_data(data_i, label_i)
 
+        ssc.model
         if (i+1) % 20 == 0:
             print(len(ssc.X))
             ssc.update_model()
@@ -122,6 +123,6 @@ if __name__ == "__main__":
             alpha = .5
             ax.scatter(data[:i,0], data[:i,1], c=[cpal[l] for l in labels[:i]], alpha=alpha)
             sns.despine()
-            ax.scatter(x=model[0][0], y=model[0][1], marker='x', c=[cpal[0]])
-            ax.scatter(x=model[1][0], y=model[1][1], marker='x', c=[cpal[1]])
+            ax.scatter(x=ssc.model[0][0], y=ssc.model[0][1], marker='x', c=[cpal[0]])
+            ax.scatter(x=ssc.model[1][0], y=ssc.model[1][1], marker='x', c=[cpal[1]])
             ax.set_title(f'n samples = {i+1}')
