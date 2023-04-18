@@ -20,7 +20,7 @@ from sklearn.metrics import confusion_matrix, mutual_info_score
 # from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
-from model import SimpleContext, SimpleShortcut, SimpleTracker
+from model import SimpleContext, SimpleMemory, SimpleTracker
 from utils import ID2CHAPTER
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \
@@ -143,7 +143,7 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-ssc = SimpleShortcut(input_dim=p.dim_input, d=p.gen_grad, lr=.25, use_model=False)
+sm = SimpleMemory(input_dim=p.dim_input, d=p.gen_grad, lr=.2)
 
 pe_tracker = SimpleTracker(size=pe_tracker_size)
 match_tracker = SimpleTracker(size=match_tracker_size)
@@ -211,7 +211,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 pe_tracker.add(log_cid_fi_i[t-1], to_np(loss_by_events[i][t-1]))
 
             # short cut inference
-            log_cid_sc_i[t] = ssc.predict(to_np(X[t]))
+            log_cid_sc_i[t] = sm.predict(to_np(X[t]))
             log_use_sc_i[t] = match_tracker.use_shortcut_t(log_cid_sc_i[t])
 
             if use_shortcut and log_use_sc_i[t]:
@@ -226,7 +226,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 # if reset h is the best, then reset it
                 h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
                 # add experience to the shortcut buffer, and record match
-                ssc.add_data(to_np(X[t]), log_cid_fi_i[t])
+                sm.add_data(to_np(X[t]), log_cid_fi_i[t])
                 match_tracker.add(log_cid_sc_i[t], log_cid_fi_i[t] == log_cid_sc_i[t])
             # print(float(torch.sum(h_t)), log_reset_h_i[t])
             # get the context vector
@@ -238,7 +238,6 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 loss.backward(retain_graph=True)
                 optimizer.step()
 
-        # ssc.update_model()
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
         log_cid_sc[i] = log_cid_sc_i

@@ -21,9 +21,7 @@ from tqdm import tqdm
 from collections import Counter
 from sklearn.metrics import confusion_matrix, mutual_info_score
 from scipy.stats import pointbiserialr, pearsonr
-# from model import CGRU as Agent
 from model import CGRU_v2 as Agent
-# from model import SimpleContext, SimpleShortcut, SimpleTracker
 from utils import ID2CHAPTER
 from utils import EventLabel, TrainValidSplit, DataLoader, Parameters, HumanBondaries
 from utils import to_np, to_pth, split_video_id, context_to_bound_vec, \

@@ -24,8 +24,9 @@ class SimpleShortcut():
         self.Y = []
 
     def add_data_list(self, x_list, y_list):
-        self.X.extend(x_list)
-        self.Y.extend(y_list)
+        assert len(x_list) == len(y_list), 'len(x_list) must = len(y_list)'
+        for x_i, y_i in zip(x_list, y_list):
+            self.add_data(x_i, y_i)
 
     def add_data(self, x_t, y_t):
         self.X.append(x_t)
