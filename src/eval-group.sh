@@ -6,7 +6,8 @@
 #SBATCH --job-name=meta-eval
 #SBATCH --output slurm_log/%j.log
 
-LOGROOT=/tigress/qlu/logs/meta-model/log
+# LOGROOT=/tigress/qlu/logs/meta-model/log
+LOGROOT=/scratch/gpfs/qlu/logs/meta-model/log
 DT=2023-04-09
 
 echo $(date)
