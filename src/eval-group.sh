@@ -8,7 +8,7 @@
 
 # LOGROOT=/tigress/qlu/logs/meta-model/log
 LOGROOT=/scratch/gpfs/qlu/logs/meta-model/log
-DT=2023-04-09
+DT=2023-04-19
 
 echo $(date)
 
