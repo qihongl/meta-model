@@ -18,11 +18,11 @@ do
             for try_reset_h in 0
             do
               use_shortcut=1
-              for gen_grad in .5 1 3
+              for gen_grad in .1 .5 1 3
                 do
                   for pe_tracker_size in 256
                   do
-                    for match_tracker_size in 4 16
+                    for match_tracker_size in 4
                     do
                       for n_pe_std in 3
                       do
