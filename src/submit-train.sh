@@ -11,7 +11,7 @@ do
     do
       for dim_context in 256
       do
-        for dim_hidden in 16
+        for dim_hidden in 16 32
         do
           for stickiness in 4 8
           do
@@ -20,11 +20,11 @@ do
               for try_reset_h in 0
               do
                 use_shortcut=1
-                for gen_grad in .1 .5 1 3
+                for gen_grad in 3
                   do
                     for pe_tracker_size in 256
                     do
-                      for match_tracker_size in 4
+                      for match_tracker_size in 2 4 16
                       do
                         for n_pe_std in 3
                         do
