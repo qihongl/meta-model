@@ -34,11 +34,14 @@ class SimpleMemory():
     def predict(self, x_t):
         if len(self.X) < N_WARMUP:
             return NULL_RESPONSE
+        # compute distances towards all exisiting centroids
         distances = compute_distances(self.X, x_t)
+        # within d, get all LCs
         pts_within_d = distances < self.d
-        if sum(pts_within_d) == 1:
-            min_distance_id = distances.argmin()
-            return self.Y[min_distance_id]
+        unique_LCs = np.unique(np.array(self.Y)[pts_within_d])
+        # if uniqueness is statisfied
+        if len(unique_LCs) == 1:
+            return unique_LCs
         return NULL_RESPONSE
 
 
@@ -60,64 +63,6 @@ def compute_distances(pts, q):
     return np.linalg.norm(pts-q, axis=1)
 
 
-#     def update_model(self):
-#         if len(self.Y) == 0:
-#             raise Warning('empty shortcut buffer')
-#             pass
-#         X = np.array(self.X)
-#         Y = np.array(self.Y)
-#         # for each inferred latent cause
-#         for y in np.unique(Y):
-#             mask = y == Y
-#             # if this inferred latent cause in not in the saved keys
-#             if y not in self.model.keys():
-#                 # add its center
-#                 self.model[y] = np.mean(X[mask,:], axis=0)
-#             else:
-#                 # otherwise, update its center
-#                 self.model[y] = self.model[y] * (1-self.lr) + np.mean(X[mask,:], axis=0) * self.lr
-#         self.flush_buffer()
-#
-#     def get_cluster_centers(self):
-#         return np.stack(self.model.values())
-#
-#     def get_cluster_ids(self):
-#         return list(self.model.keys())
-#
-#     def predict(self, x_t):
-#         if self.use_model:
-#             return self.cluster_based_predict(x_t)
-#         else:
-#             return self.instance_based_predict(x_t)
-#
-#     def instance_based_predict(self, x_t):
-#         if len(self.Y) == 0:
-#             return NULL_RESPONSE
-#         distances = norm_1vec_vs_nvecs(x_t, self.X)
-#         closest_d_i = np.argmin(distances)
-#         # if the min dist cluster is closer than d, return its id
-#         if distances[closest_d_i] < self.d:
-#             return self.Y[closest_d_i]
-#         return NULL_RESPONSE
-#
-#     def cluster_based_predict(self, x_t):
-#         if len(self.model) == 0:
-#             return NULL_RESPONSE
-#         cluster_ids = self.get_cluster_ids()
-#         distances = norm_1vec_vs_nvecs(x_t, self.get_cluster_centers())
-#         closest_d_i = np.argmin(distances)
-#         if distances[closest_d_i] > self.d:
-#             return NULL_RESPONSE
-#         return cluster_ids[closest_d_i]
-#
-#
-# def norm_1vec_vs_nvecs(vector, vectors, ord=2):
-#     '''compute the distance between 1 vector vs. a bunch of vectors'''
-#     assert len(vector) == np.shape(vectors)[1]
-#     x_t_rep = np.tile(vector, (np.shape(vectors)[0], 1))
-#     return np.linalg.norm(x_t_rep - vectors, axis=1, ord=ord)
-
-
 
 if __name__ == "__main__":
     from sklearn.datasets import make_blobs
@@ -133,8 +78,8 @@ if __name__ == "__main__":
     # np.random.seed(0)
     cpal = sns.color_palette()
     input_dim = 2
-    n_samples = 100
-    cluster_std = .75
+    n_samples = 200
+    cluster_std = 1
     data_all, labels_all = make_blobs(n_samples=n_samples*2, centers=3, n_features=input_dim, cluster_std=cluster_std, random_state=0)
     data, data_test = data_all[:n_samples,:], data_all[n_samples:,:]
     labels, labels_test = labels_all[:n_samples], labels_all[n_samples:]
@@ -167,7 +112,7 @@ if __name__ == "__main__":
     d = .2
     lr = .1
     for d in [.1, .2, .4, 1, 2, 4]:
-        # use_model = False
+            # use_model = False
 
         sm = SimpleMemory(input_dim=input_dim, d=d, lr=lr)
         Y_hat = np.zeros((n_samples, n_samples))
@@ -201,15 +146,15 @@ if __name__ == "__main__":
         ax.legend()
 
 
-            # # sm.model
-            # if (i+1) % 20 == 0:
-            #     print(len(sm.X))
-            #     sm.update_model()
-            #     print(len(sm.X))
-            #     f, ax = plt.subplots(1,1, figsize=(10,8))
-            #     alpha = .5
-            #     ax.scatter(data[:i,0], data[:i,1], c=[cpal[l] for l in labels[:i]], alpha=alpha)
-            #     sns.despine()
-            #     ax.scatter(x=sm.model[0][0], y=sm.model[0][1], marker='x', c=[cpal[0]])
-            #     ax.scatter(x=sm.model[1][0], y=sm.model[1][1], marker='x', c=[cpal[1]])
-            #     ax.set_title(f'n samples = {i+1}')
+                # # sm.model
+                # if (i+1) % 20 == 0:
+                #     print(len(sm.X))
+                #     sm.update_model()
+                #     print(len(sm.X))
+                #     f, ax = plt.subplots(1,1, figsize=(10,8))
+                #     alpha = .5
+                #     ax.scatter(data[:i,0], data[:i,1], c=[cpal[l] for l in labels[:i]], alpha=alpha)
+                #     sns.despine()
+                #     ax.scatter(x=sm.model[0][0], y=sm.model[0][1], marker='x', c=[cpal[0]])
+                #     ax.scatter(x=sm.model[1][0], y=sm.model[1][1], marker='x', c=[cpal[1]])
+                #     ax.set_title(f'n samples = {i+1}')
