@@ -5,4 +5,5 @@ from .SimpleShortcut import SimpleShortcut
 from .SimpleMemory import SimpleMemory
 from .SimpleContext import SimpleContext
 from .SimpleTracker import SimpleTracker
+from .Vanilla_iSITH import Vanilla_iSITH
 from .TabularShortCutIS import TabularShortCutIS
