@@ -53,7 +53,7 @@ for i, event_id in enumerate(event_id_list):
         t_start, t_end = int(t_start), int(t_end)
         # compute scene vector
         sv = np.nanmean(X[t_start: t_end, :], axis=0)
-        subev_id = list(evlab.all_evnames).index(evname)
+        subev_id = list(evlab.all_subev_names).index(evname)
         # remove nan vector
         if np.sum(np.isnan(sv)) > 0:
             continue
@@ -71,6 +71,7 @@ n_train_vecs = np.shape(np.vstack(scene_vecs[:n_train_scene_vecs]))[0]
 
 print(f'X shape : {np.shape(scene_vecs_s)}')
 print(f'Y shape : {np.shape(subev_ids_s)}')
+
 
 '''split data '''
 X_tr = scene_vecs_s[:n_train_vecs,:]

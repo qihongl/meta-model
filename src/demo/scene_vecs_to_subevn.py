@@ -52,7 +52,7 @@ for i, event_id in enumerate(event_id_list):
         t_start, t_end = int(t_start * 3), int(t_end * 3)
         # compute scene vector
         sv = np.nanmean(X[t_start: t_end, :], axis=0)
-        subev_id = list(evlab.all_evnames).index(evname)
+        subev_id = list(evlab.all_subev_names).index(evname)
         # remove nan vector
         if np.sum(np.isnan(sv)) > 0:
             continue
@@ -76,7 +76,7 @@ Y_te = subev_ids[n_train_scene_vecs:]
 unique, counts = np.unique(Y_te, return_counts=True)
 
 majority_guess_baseline = np.max(counts) / len(Y_te)
-uniform_guess_baseline = 1 / evlab.n_evnames
+uniform_guess_baseline = 1 / evlab.n_subev_names
 print(majority_guess_baseline)
 print(uniform_guess_baseline)
 
