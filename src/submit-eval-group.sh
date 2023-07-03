@@ -3,19 +3,26 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
-for lr in 1e-3 1e-4
+gen_grad=.5
+pe_tracker_size=32
+match_tracker_size=4
+n_pe_std=3
+
+for subj_id in {0..11}
 do
-  for update_freq in 4 8
+  for lr in 1e-3
   do
-    for dim_context in 256
+    for update_freq in 8
     do
-      for dim_hidden in 16 32
+      for dim_context in 256
       do
-        for stickiness in 4 8 16
+        for dim_hidden in 16
         do
-          for concentration in .75 1
+          for stickiness in 4 8
           do
-            for try_reset_h in 0 1
+            for concentration in .75 1
+            do
+              for try_reset_h in 0 1
             do
               # use_shortcut=1
               # for gen_grad in .1 .5 3
