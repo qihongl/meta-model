@@ -8,22 +8,21 @@ pe_tracker_size=32
 match_tracker_size=4
 n_pe_std=3
 
-for subj_id in {0..11}
+
+for lr in 1e-3
 do
-  for lr in 1e-3
+  for update_freq in 8
   do
-    for update_freq in 8
+    for dim_context in 256
     do
-      for dim_context in 256
+      for dim_hidden in 16
       do
-        for dim_hidden in 16
+        for stickiness in 4 8
         do
-          for stickiness in 4 8
+          for concentration in .75 1
           do
-            for concentration in .75 1
+            for try_reset_h in 0 1
             do
-              for try_reset_h in 0 1
-              do
               # use_shortcut=1
               # for gen_grad in .1 .5 3
               #   do
