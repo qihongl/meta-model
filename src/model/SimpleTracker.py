@@ -6,7 +6,7 @@ class SimpleTracker():
 
     def __init__(self, size=256):
         self.buffer = {}
-        self.accurate = {}
+        self.unique = {}
         self.size = size
 
     def add(self, ctx_id, value, verbose=False):
@@ -16,24 +16,29 @@ class SimpleTracker():
         # add new data point to the buffer
         self.buffer[ctx_id].append(value)
         # if buffer is full
-        n_items_in_buffer = len(self.buffer[ctx_id])
-        if n_items_in_buffer == self.size:
-            if np.sum(self.buffer[ctx_id]) == self.size:
-                self.accurate[ctx_id] = True
-            else:
-                self.accurate[ctx_id] = False
-        # if buffer overflow
-        elif n_items_in_buffer > self.size:
+        if self.buffer_full(ctx_id):
             self.buffer[ctx_id].pop(0)
+        # else:
+        #     print('buffer')
+        #     print(self.buffer[ctx_id])
+        #     print('unique:')
+        #     print(np.unique(self.buffer[ctx_id]))
+        #     print('len:')
+        #     print(len(np.unique(self.buffer[ctx_id])))
+        #     if len(np.unique(self.buffer[ctx_id])) == 1:
+        #         self.unique[ctx_id] = True
+        #     else:
+        #         self.unique[ctx_id] = False
 
-    def use_shortcut_t(self, ctx_id):
+    def is_unique(self, ctx_id):
         if not self.ctx_in_tracker(ctx_id):
             return False
-        return self.accurate[ctx_id]
+        return self.unique[ctx_id]
 
     def reinit_ctx_buffer(self, ctx_id):
         self.buffer[ctx_id] = []
-        self.accurate[ctx_id] = False
+        self.unique[ctx_id] = False
+        # print(f'context {ctx_id} reinitialized!')
 
     def buffer_full(self, ctx_id):
         return len(self.buffer[ctx_id]) == self.size
@@ -58,6 +63,13 @@ class SimpleTracker():
             return None
         return np.std(self.buffer[ctx_id])
 
+    def get_z_stats(self, ctx_id, value):
+        if not self.ctx_in_tracker(ctx_id):
+            return None
+        # compute the z stats
+        z = (value - np.mean(self.buffer[ctx_id])) / np.std(self.buffer[ctx_id])
+        return z
+
     def peaked(self, ctx_id, n_std, value):
         assert n_std > 0
         if not self.ctx_in_tracker(ctx_id):
@@ -70,6 +82,37 @@ class SimpleTracker():
     def list_accuracy(self):
         return [v for k,v in self.buffer.items()]
 
+    def get_sigma(self, ctx_id):
+        if not self.ctx_in_tracker(ctx_id):
+            return np.ones(30, )
+        return map_variance(np.stack(self.buffer[ctx_id]))
+
+
+def map_variance(samples, nu0=10, var0=.06):
+    """
+    This estimator assumes an scaled inverse-chi squared prior over the
+    variance and a Gaussian likelihood. The parameters d and scale
+    of the internal function parameterize the posterior of the variance.
+    Taken from Bayesian Data Analysis, ch2 (Gelman)
+    samples: N length array or NxD array, where N is the number of
+             samples and D is the dimensions
+    nu0: prior degrees of freedom
+    var0: prior scale parameter
+    returns: float or D-length array, mode of the posterior
+    ## Calculation ##
+    the posterior of the variance is thus (Gelman, 2nd edition, page 50):
+        p(var | y) ~ Inv-X^2(nu0 + n, (nu0 * var0 + n * v) / (nu0 + n) )
+    where n is the sample size and v is the empirical variance.  The
+    mode of this posterior simplifies to:
+        mode(var|y) = (nu0 * var0 + n * v) / (v0 + n + 2)
+    which is just a weighted average of the two modes
+    """
+    # get n and v from the data
+    n = np.shape(samples)[0]
+    v = np.var(samples, axis=0)
+    mode = (nu0 * var0 + n * v) / (nu0 + n + 2)
+    return mode
+
 
 if __name__ == "__main__":
     '''how to use'''
@@ -79,7 +122,7 @@ if __name__ == "__main__":
     import sys
     sns.set(style='white', palette='colorblind', context='poster')
 
-    size = 8
+    size = 32
     pet = SimpleTracker(size=size)
     print(pet.buffer)
     print()
@@ -93,13 +136,15 @@ if __name__ == "__main__":
         print(pet.buffer)
 
     for i in range(10):
-        pet.add(c2, 1)
-        pet.buffer
+        pet.add(c2, np.random.normal())
+        pet.buffer[1]
 
 
     print()
     pet.get_mean(1)
     pet.get_std(1)
+    pet.get_z_stats(1, 2)
 
-    pet.buffer[1]
-    pet.accurate
+    x = np.unique(pet.buffer[1])
+    len(x)
+    pet.unique

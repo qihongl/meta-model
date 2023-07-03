@@ -83,30 +83,61 @@ class CGRU_v2(nn.Module):
             [yhat_t, h_t], _ = self.forward(x_t, h, context_t=context_t)
         return yhat_t
 
-    def try_all_contexts(self, y_t, x_t, h_t, contexts, prev_context_id=None, verbose=True):
+    def try_all_contexts(
+        self, y_t, x_t, h_t, contexts,
+        prev_context_id=None, pe_tracker=None, verbose=True
+        ):
         # loop over all ctx ...
         n_contexts = len(contexts)
+        loss = torch.zeros(n_contexts, )
         pe = torch.zeros(n_contexts, )
+        ydiff = torch.zeros(n_contexts, )
+        sigma = np.zeros((n_contexts, 30))
         # [None] * (n_contexts)
         for k in range(n_contexts):
             yhat_k = self.forward_nograd(x_t, h_t, to_pth(contexts[k]))
-            pe[k] = self.criterion(y_t, torch.squeeze(yhat_k))
+            loss[k] = self.criterion(y_t, torch.squeeze(yhat_k))
+            # sigma_k = pe_tracker.get_sigma(k)
+            # sigma[k] = sigma_k
+            # # print(k, sigma_k)
+            # pe[k] = compute_loglik(to_np(y_t - yhat_k), sigma_k)
+            # ydiff[k] = torch.norm(yhat_k - y_t)
 
-        # decide if whether to restart the ongoing context
+        # whether to add the loss for restarting the ongoing context
         if prev_context_id is not None and self.try_reset_h:
             yhat_prev_restart = self.forward_nograd(
                 x_t, self.get_init_states(), to_pth(contexts[prev_context_id])
             )
-            pe_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
+            loss_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
             # append the restarting PE at the end of the list
-            pe = torch.cat([pe, pe_prev_restart.view(1)])
+            loss = torch.cat([loss, loss_prev_restart.view(1)])
+            # # append pe
+            # sigma_prev = pe_tracker.get_sigma(prev_context_id)
+            # pe_prev_restart = compute_loglik(to_np(y_t - yhat_prev_restart), sigma_prev)
+            # pe = torch.cat([pe, torch.tensor(pe_prev_restart).view(1)])
+            # ydiff = torch.cat([pe, torch.norm(yhat_prev_restart - y_t).view(1)])
 
         # softmax the pe
+        pe = loss
         if self.softmax_beta is not None:
-            pe = stable_softmax(to_np(pe), self.softmax_beta)
+            # lik = stable_softmax(to_np(pe), 2)
+            lik = stable_softmax(to_np(pe), self.softmax_beta)
         else:
-            pe = to_np(pe)
-        return pe
+            lik = to_np(pe)
+
+        # print('loss:')
+        # print(loss)
+        # print('ydiff:')
+        # print(ydiff)
+        # print('sigma')
+        # # print(np.array(sigma))
+        # print(np.mean(sigma, axis=1))
+        # print('PE (neg log like):')
+        # print(pe)
+        # print('LIK:')
+        # print(lik)
+        # print()
+        return lik
 
 
     def get_kaiming_states(self):
@@ -152,7 +183,6 @@ def get_weights(layer_name, model, to_np=True):
     return weights
 
 
-
 def stable_softmax(x, beta=1/3, subtract_max=True):
     assert beta > 0
     if subtract_max:
@@ -160,3 +190,19 @@ def stable_softmax(x, beta=1/3, subtract_max=True):
     # apply temperture
     z = x / beta
     return np.exp(z) / (np.sum(np.exp(z)) + 1e-010)
+
+
+def compute_loglik(x, variances):
+    """
+    Assumes a zero-mean mulitivariate normal with a diagonal covariance function
+    Parameters:
+        x: array, shape (D,)
+            observations
+        variances: array, shape (D,)
+            Diagonal values of the covariance function
+    output
+    ------
+        log-probability: float
+    """
+    log_2pi = np.log(2.0 * np.pi)
+    return -0.5 * (log_2pi * np.shape(x)[0] + np.sum(np.log(variances) + (x**2) / variances ))

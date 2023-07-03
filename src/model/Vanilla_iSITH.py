@@ -98,5 +98,5 @@ if __name__ == "__main__":
     ax.set_title('EWMA')
     ax.set_ylabel('feature val')
     ax.set_xlabel('feature dim')
-    ax.legend(title='decay rate')
+    ax.legend(title='discount rate')
     sns.despine()

@@ -98,6 +98,14 @@ def compute_stats(matrix, axis=0, n_se=2, omitnan=False):
     return mu_, er_
 
 
+def erwa(data, decay_factor):
+    data = data[:,::-1]
+    num_features, num_time_steps = data.shape
+    weights = np.power(decay_factor, np.arange(num_time_steps))
+    weighted_data = data * weights.reshape(1, -1)
+    erwa_result = np.sum(weighted_data, axis=1) / np.sum(weights)
+    return erwa_result
+
 
 if __name__ == "__main__":
     # x = np.array([0,1,0])

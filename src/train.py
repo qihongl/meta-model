@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from collections import Counter
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, mutual_info_score
 # from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
@@ -82,7 +83,7 @@ log_root = args.log_root
 # subj_id = 0
 # #
 # lr = 1e-3
-# update_freq = 16
+# update_freq = 1
 # # model param
 # dim_hidden = 16
 # dim_context = 128
@@ -92,7 +93,7 @@ log_root = args.log_root
 # # full inference param
 # ctx_wt = .5
 # concentration = 1
-# stickiness = 2.0
+# stickiness = 32.0
 # lik_softmax_beta = .33
 # try_reset_h = False
 # # handoff param
@@ -108,6 +109,9 @@ dl = DataLoader()
 tvs = TrainValidSplit()
 evlab = EventLabel()
 hb = HumanBondaries()
+
+ss = StandardScaler()
+
 p = Parameters(
     dim_hidden = dim_hidden, dim_context = dim_context, ctx_wt = ctx_wt,
     stickiness = stickiness, concentration=concentration,
@@ -145,6 +149,7 @@ sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # init the shortcut
 sm = SimpleMemory(input_dim=p.dim_input, d=p.gen_grad, lr=.2)
 
+loss_tracker = SimpleTracker(size=pe_tracker_size)
 pe_tracker = SimpleTracker(size=pe_tracker_size)
 match_tracker = SimpleTracker(size=match_tracker_size)
 
@@ -180,6 +185,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         t_start = time.time()
         # get data
         X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
+        X = (X - torch.mean(X,axis=0)) / torch.std(X,axis=0)
         T = len(X) - 1
         # prealloc
         log_cid_fi_i = np.zeros(T, dtype=int)
@@ -193,6 +199,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         loss = 0
         h_t = agent.get_init_states()
         for t in range(T):
+            # print(f'i = {i} \t t = {t}')
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
@@ -200,36 +207,21 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             loss += loss_it
             loss_by_events[i].append(loss_it.clone().detach())
 
-            # if use shortcut, decide whether to turn off shortcut based on PE
-            if use_shortcut and t > 0 and log_use_sc_i[t-1]:
-                if pe_tracker.peaked(log_cid_sc_i[t-1], n_pe_std, to_np(loss_it)):
-                    match_tracker.reinit_ctx_buffer(log_cid_sc_i[t-1])
-                    log_pe_peak_i[t] = True
-                    # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut, turn off ctx {log_cid_sc_i[t]}')
-            else:
-                # if use full inference, record full inf PE as the baseline
-                pe_tracker.add(log_cid_fi_i[t-1], to_np(loss_by_events[i][t-1]))
+            # if use full inference, record full inf PE as the baseline
+            pe_tracker.add(log_cid_fi_i[t-1], to_np(torch.squeeze(y_t_hat) - X[t+1]))
 
-            # short cut inference
-            log_cid_sc_i[t] = sm.predict(to_np(X[t]))
-            log_use_sc_i[t] = match_tracker.use_shortcut_t(log_cid_sc_i[t])
+            # context - full inference
+            lik = agent.try_all_contexts(
+                X[t+1], X[t], h_t, sc.context,
+                prev_context_id=sc.prev_cluster_id, pe_tracker=pe_tracker
+            )
 
-            if use_shortcut and log_use_sc_i[t]:
-                log_cid_i[t] = log_cid_sc_i[t]
-                # print(f'use short cut on ctx {log_cid_sc_i[t]}')
-            else:
-                # context - full inference
-                lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id)
-                log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
-                # if use full inference...
-                log_cid_i[t] = log_cid_fi_i[t]
-                # if reset h is the best, then reset it
-                h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
-                # add experience to the shortcut buffer, and record match
-                sm.add_data(to_np(X[t]), log_cid_fi_i[t])
-                match_tracker.add(log_cid_sc_i[t], log_cid_fi_i[t] == log_cid_sc_i[t])
-            # print(float(torch.sum(h_t)), log_reset_h_i[t])
-            # get the context vector
+            log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
+            # if use full inference...
+            log_cid_i[t] = log_cid_fi_i[t]
+            # if reset h is the best, then reset it
+            h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
+            # update the current context vector
             c_vec = sc.context[log_cid_i[t]]
 
             # update weights for every other t time points
