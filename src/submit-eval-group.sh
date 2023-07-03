@@ -23,7 +23,7 @@ do
             for concentration in .75 1
             do
               for try_reset_h in 0 1
-            do
+              do
               # use_shortcut=1
               # for gen_grad in .1 .5 3
               #   do
