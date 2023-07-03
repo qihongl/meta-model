@@ -3,6 +3,11 @@
 ctx_wt=.5
 lik_softmax_beta=0.33
 
+gen_grad=.5
+pe_tracker_size=32
+match_tracker_size=4
+n_pe_std=3
+
 for subj_id in {0..11}
 do
   for lr in 1e-3
