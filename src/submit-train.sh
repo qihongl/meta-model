@@ -10,7 +10,7 @@ n_pe_std=3
 
 for subj_id in {0..11}
 do
-  for lr in 1e-3 1e-4
+  for lr in 5e-4
   do
     for update_freq in 4 8
     do
