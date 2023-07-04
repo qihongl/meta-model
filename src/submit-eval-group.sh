@@ -9,15 +9,15 @@ match_tracker_size=4
 n_pe_std=3
 
 
-for lr in 1e-3
+for lr in 1e-3 1e-4
 do
-  for update_freq in 8
+  for update_freq in 4 8
   do
     for dim_context in 256
     do
       for dim_hidden in 16
       do
-        for stickiness in 4 8
+        for stickiness in 4 8 16
         do
           for concentration in .75 1
           do
@@ -32,7 +32,7 @@ do
               #       do
               #         for n_pe_std in 3
               #         do
-              #         sbatch eval-group.sh \
+              #         sbatch train.sh \
               #              ${subj_id} \
               #              ${lr} \
               #              ${update_freq} \
