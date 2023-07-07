@@ -381,7 +381,7 @@ for subj_id, subj_id_ in enumerate(subj_ids):
     log_cid = log_cid_tr + log_cid_te
 
     # collect data
-    loss_mu_by_events_g[subj_id] = [torch.stack(loss_event_i).mean() for loss_event_i in loss_by_events_te]
+    loss_mu_by_events_g[subj_id] = [np.stack(loss_event_i).mean() for loss_event_i in loss_by_events_te]
 
     n_ctx_over_time_fi_g[subj_id] = compute_n_ctx_over_time(log_cid_fi)
 
