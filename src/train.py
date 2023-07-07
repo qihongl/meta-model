@@ -205,7 +205,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             # record losses
             loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
             loss += loss_it
-            loss_by_events[i].append(loss_it.clone().detach())
+            loss_by_events[i].append(to_np(loss_it))
 
             # if use full inference, record full inf PE as the baseline
             pe_tracker.add(log_cid_fi_i[t-1], to_np(torch.squeeze(y_t_hat) - X[t+1]))
@@ -215,8 +215,8 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 X[t+1], X[t], h_t, sc.context,
                 prev_context_id=sc.prev_cluster_id, pe_tracker=pe_tracker
             )
-
             log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
+
             # if use full inference...
             log_cid_i[t] = log_cid_fi_i[t]
             # if reset h is the best, then reset it

@@ -11,6 +11,7 @@ class SimpleContext():
         self.prev_cluster_id = None
         self.n_context = None
         self.context = []
+        self.frozen = False
 
     def to_dict(self):
         return dict({
@@ -33,14 +34,36 @@ class SimpleContext():
         self.n_context = len(self.context)
         self.prev_cluster_id = None
 
-
     def init_context(self):
         self.n_context = 0
-        self.context = [self.random_vector()]
+        self.context = [self.zero_vector()]
+        # self.context = [self.random_vector()]
         self.prev_cluster_id = 1
         c_id, c_vec = self.add_new_context()
         return c_id, c_vec
 
+    def freeze(self):
+        self.frozen = True
+
+    def unfreeze(self):
+        self.frozen = False
+
+    # def add_new_context(self):
+    #     '''
+    #     sample a random vector to represent the k-th context
+    #     this is useful because
+    #     - random vectors are easy to get
+    #     - random vectors are roughly orthogonal
+    #     '''
+    #     # set ctx 0 to be the added context
+    #     self.context.append(self.context[0])
+    #     # find another vector as the novel context
+    #     novel_context = self.random_vector()
+    #     self.context[0] = novel_context
+    #
+    #     # self.context.append(novel_context)
+    #     self.n_context += 1
+    #     return self.n_context, self.context[0]
 
     def add_new_context(self):
         '''
@@ -49,16 +72,13 @@ class SimpleContext():
         - random vectors are easy to get
         - random vectors are roughly orthogonal
         '''
-
         # set ctx 0 to be the added context
-        self.context.append(self.context[0])
-        # find another vector as the novel context
-        novel_context = self.random_vector()
-        self.context[0] = novel_context
+        self.context.append(self.random_vector())
 
         # self.context.append(novel_context)
         self.n_context += 1
-        return self.n_context, self.context[0]
+        return self.n_context, self.context[-1]
+
 
     def compute_posterior(self, likelihood, verbose=False):
         assert np.all(likelihood) >= 0, f'likelihood must be non-neg, but received {likelihood}'
@@ -90,20 +110,20 @@ class SimpleContext():
             max_pos_cid, _ = self.add_new_context()
             reset_h = True
             if verbose >= 1:
-                print(f'adding the {self.n_context}-th context! RESET H!')
+                print(f'adding the {self.n_context}-th context! RESET H to {self.context[max_pos_cid][:3]}!')
 
         elif self.try_reset_h and max_pos_cid == len(likelihood) - 1: # if it is the last index
             max_pos_cid = self.prev_cluster_id
             reset_h = True
             if verbose >= 1:
-                print(f'restart the {max_pos_cid}-th context! RESET H!')
+                print(f'restart the {max_pos_cid}-th context! RESET H to {self.context[max_pos_cid][:3]}!')
         elif max_pos_cid == self.prev_cluster_id:
             if verbose >= 2:
                 print(f'keep using the {max_pos_cid}-th context!')
         else:
             reset_h = True
             if verbose >= 1:
-                print(f'switch to {max_pos_cid}-th context! RESET H!')
+                print(f'switch to {max_pos_cid}-th context! RESET H to {self.context[max_pos_cid][:3]}!')
 
         if verbose >= 3:
             print(f'lik: {likelihood}\nposterior: {posterior}')
@@ -117,6 +137,9 @@ class SimpleContext():
 
     def random_vector(self, loc=0, scale=1):
         return np.random.normal(loc=loc, scale=scale, size=(self.context_dim,))
+
+    def zero_vector(self):
+        return np.zeros(size=(self.context_dim,))
 
     def zero_vector(self):
         return np.zeros(self.context_dim,)
@@ -142,6 +165,7 @@ if __name__ == "__main__":
     try_reset_h = 0
     sc = SimpleContext(context_dim, stickiness, concentration, try_reset_h)
     c_id, c_vec = sc.init_context()
+    sc.context[0]
     print(sc.prev_cluster_id)
 
 

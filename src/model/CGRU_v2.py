@@ -148,12 +148,12 @@ class CGRU_v2(nn.Module):
             return self.get_zero_states()
         return self.get_rand_states()
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def get_zero_states(self):
         h_0 = torch.zeros(1, 1, self.hidden_dim)
         return h_0
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def get_rand_states(self, scale=.1):
         h_0 = torch.randn(1, 1, self.hidden_dim) * scale
         return h_0
