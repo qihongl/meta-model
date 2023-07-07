@@ -10,13 +10,13 @@ n_pe_std=3
 
 for subj_id in {0..11}
 do
-  for lr in 1e-3
+  for lr in 3e-4
   do
-    for update_freq in 8
+    for update_freq in 2 4
     do
       for dim_context in 256
       do
-        for dim_hidden in 16 32 
+        for dim_hidden in 16
         do
           for stickiness in 2 4 8
           do
