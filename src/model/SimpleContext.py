@@ -110,20 +110,20 @@ class SimpleContext():
             max_pos_cid, _ = self.add_new_context()
             reset_h = True
             if verbose >= 1:
-                print(f'adding the {self.n_context}-th context! RESET H to {self.context[max_pos_cid][:3]}!')
+                print(f'adding the {self.n_context}-th context! RESET H! c = {self.context[max_pos_cid][:3]}!')
 
         elif self.try_reset_h and max_pos_cid == len(likelihood) - 1: # if it is the last index
             max_pos_cid = self.prev_cluster_id
             reset_h = True
             if verbose >= 1:
-                print(f'restart the {max_pos_cid}-th context! RESET H to {self.context[max_pos_cid][:3]}!')
+                print(f'restart the {max_pos_cid}-th context! RESET H! c = {self.context[max_pos_cid][:3]}!')
         elif max_pos_cid == self.prev_cluster_id:
             if verbose >= 2:
                 print(f'keep using the {max_pos_cid}-th context!')
         else:
             reset_h = True
             if verbose >= 1:
-                print(f'switch to {max_pos_cid}-th context! RESET H to {self.context[max_pos_cid][:3]}!')
+                print(f'switch to {max_pos_cid}-th context! RESET H! c = {self.context[max_pos_cid][:3]}!')
 
         if verbose >= 3:
             print(f'lik: {likelihood}\nposterior: {posterior}')
@@ -179,6 +179,9 @@ if __name__ == "__main__":
     # sc.n_context
     sc.assign_context([.999, .1], verbose=3)
     sc.assign_context([.1, .1, .1], verbose=3)
+
+    sc.assign_context([.1, .1, .1, .1, .1], verbose=3)
+
 
     # sc.context
 # sc.context[sc.prev_cluster_id]

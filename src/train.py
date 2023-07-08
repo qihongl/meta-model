@@ -266,7 +266,7 @@ results_te = run_model(tvs.valid_ids, p=p, train_mode=False)
 
 '''plot the data '''
 # plot loss by valid event
-loss_mu_by_events = [torch.stack(loss_event_i).mean() for loss_event_i in loss_by_events_te]
+loss_mu_by_events = [np.stack(loss_event_i).mean() for loss_event_i in loss_by_events_te]
 f, ax = plt.subplots(1,1, figsize=(7,4))
 ax.plot(loss_mu_by_events)
 ax.set_title('%.3f' % torch.stack(loss_mu_by_events).mean())
