@@ -9,7 +9,7 @@ match_tracker_size=4
 n_pe_std=3
 
 
-for lr in 3e-4
+for lr in 1e-3 1e-4
 do
   for update_freq in 2 4
   do
