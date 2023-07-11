@@ -209,11 +209,12 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
             # if use full inference, record full inf PE as the baseline
             pe_tracker.add(log_cid_fi_i[t-1], to_np(torch.squeeze(y_t_hat) - X[t+1]))
+            loss_tracker.add(log_cid_fi_i[t-1], to_np(loss_it))
 
             # context - full inference
             lik = agent.try_all_contexts(
                 X[t+1], X[t], h_t, sc.context,
-                prev_context_id=sc.prev_cluster_id, pe_tracker=pe_tracker
+                prev_context_id=sc.prev_cluster_id, pe_tracker=loss_tracker
             )
             log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
 
@@ -269,7 +270,7 @@ results_te = run_model(tvs.valid_ids, p=p, train_mode=False)
 loss_mu_by_events = [np.stack(loss_event_i).mean() for loss_event_i in loss_by_events_te]
 f, ax = plt.subplots(1,1, figsize=(7,4))
 ax.plot(loss_mu_by_events)
-ax.set_title('%.3f' % torch.stack(loss_mu_by_events).mean())
+ax.set_title('%.3f' % np.stack(loss_mu_by_events).mean())
 ax.set_xlabel('validation video id')
 ax.set_ylabel('loss')
 sns.despine()
