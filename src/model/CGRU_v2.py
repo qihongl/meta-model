@@ -83,6 +83,7 @@ class CGRU_v2(nn.Module):
             [yhat_t, h_t], _ = self.forward(x_t, h, context_t=context_t)
         return yhat_t
 
+
     def try_all_contexts(
         self, y_t, x_t, h_t, contexts,
         prev_context_id=None, pe_tracker=None, verbose=True
@@ -93,15 +94,20 @@ class CGRU_v2(nn.Module):
         pe = torch.zeros(n_contexts, )
         ydiff = torch.zeros(n_contexts, )
         sigma = np.zeros((n_contexts, 30))
-        # [None] * (n_contexts)
+
         for k in range(n_contexts):
             yhat_k = self.forward_nograd(x_t, h_t, to_pth(contexts[k]))
             loss[k] = self.criterion(y_t, torch.squeeze(yhat_k))
-            # sigma_k = pe_tracker.get_sigma(k)
-            # sigma[k] = sigma_k
-            # # print(k, sigma_k)
-            # pe[k] = compute_loglik(to_np(y_t - yhat_k), sigma_k)
-            # ydiff[k] = torch.norm(yhat_k - y_t)
+            sigma_k = pe_tracker.get_sigma(k)
+            sigma[k] = sigma_k
+            # print(k, sigma_k)
+            pe[k] = compute_loglik(to_np(y_t - yhat_k), sigma_k)
+            ydiff[k] = torch.norm(yhat_k - y_t)
+            # z stats
+            # print(f'ctx id = {k}')
+            # print(f'loss[k] = {loss[k]}')
+            # print(f'k / len(ctxs) = {k} / {len(contexts)}')
+            # pe[k] = pe_tracker.get_z_stats(k, loss[k])
 
         # whether to add the loss for restarting the ongoing context
         if prev_context_id is not None and self.try_reset_h:
@@ -111,14 +117,19 @@ class CGRU_v2(nn.Module):
             loss_prev_restart = self.criterion(y_t, torch.squeeze(yhat_prev_restart))
             # append the restarting PE at the end of the list
             loss = torch.cat([loss, loss_prev_restart.view(1)])
-            # # append pe
-            # sigma_prev = pe_tracker.get_sigma(prev_context_id)
-            # pe_prev_restart = compute_loglik(to_np(y_t - yhat_prev_restart), sigma_prev)
+
+            # append pe
+            sigma_prev = pe_tracker.get_sigma(prev_context_id)
+            pe_prev_restart = compute_loglik(to_np(y_t - yhat_prev_restart), sigma_prev)
+            pe = torch.cat([pe, torch.tensor(pe_prev_restart).view(1)])
+            ydiff = torch.cat([pe, torch.norm(yhat_prev_restart - y_t).view(1)])
+
+            # pe_prev_restart = pe_tracker.get_z_stats(prev_context_id, loss_prev_restart)
             # pe = torch.cat([pe, torch.tensor(pe_prev_restart).view(1)])
             # ydiff = torch.cat([pe, torch.norm(yhat_prev_restart - y_t).view(1)])
 
         # softmax the pe
-        pe = loss
+        # pe = loss
         if self.softmax_beta is not None:
             # lik = stable_softmax(to_np(pe), 2)
             lik = stable_softmax(to_np(pe), self.softmax_beta)
@@ -129,10 +140,8 @@ class CGRU_v2(nn.Module):
         # print(loss)
         # print('ydiff:')
         # print(ydiff)
-        # print('sigma')
-        # # print(np.array(sigma))
-        # print(np.mean(sigma, axis=1))
-        # print('PE (neg log like):')
+        #
+        # print('PE:')
         # print(pe)
         # print('LIK:')
         # print(lik)

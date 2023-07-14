@@ -38,14 +38,14 @@ matplotlib.use('Agg')
 parser = argparse.ArgumentParser()
 parser.add_argument('--subj_id', default=99, type=int)
 parser.add_argument('--lr', default=1e-3, type=float)
-parser.add_argument('--update_freq', default=1, type=int)
+parser.add_argument('--update_freq', default=2, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
-parser.add_argument('--dim_context', default=128, type=int)
+parser.add_argument('--dim_context', default=256, type=int)
 parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=1.5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
 parser.add_argument('--concentration', default=1, type=float)
-parser.add_argument('--stickiness', default=8, type=float)
+parser.add_argument('--stickiness', default=.5, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
 parser.add_argument('--pe_tracker_size', default=256, type=int)
@@ -147,11 +147,11 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-sm = SimpleMemory(input_dim=p.dim_input, d=p.gen_grad, lr=.2)
+# sm = SimpleMemory(input_dim=p.dim_input, d=p.gen_grad, lr=.2)
 
-loss_tracker = SimpleTracker(size=pe_tracker_size)
+# loss_tracker = SimpleTracker(size=pe_tracker_size)
 pe_tracker = SimpleTracker(size=pe_tracker_size)
-match_tracker = SimpleTracker(size=match_tracker_size)
+# match_tracker = SimpleTracker(size=match_tracker_size)
 
 '''train the model'''
 
@@ -185,7 +185,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         t_start = time.time()
         # get data
         X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
-        X = (X - torch.mean(X,axis=0)) / torch.std(X,axis=0)
+        # X = (X - torch.mean(X,axis=0)) / torch.std(X,axis=0)
         T = len(X) - 1
         # prealloc
         log_cid_fi_i = np.zeros(T, dtype=int)
@@ -209,12 +209,12 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
             # if use full inference, record full inf PE as the baseline
             pe_tracker.add(log_cid_fi_i[t-1], to_np(torch.squeeze(y_t_hat) - X[t+1]))
-            loss_tracker.add(log_cid_fi_i[t-1], to_np(loss_it))
+            # loss_tracker.add(log_cid_fi_i[t-1], to_np(loss_it))
 
             # context - full inference
             lik = agent.try_all_contexts(
                 X[t+1], X[t], h_t, sc.context,
-                prev_context_id=sc.prev_cluster_id, pe_tracker=loss_tracker
+                prev_context_id=sc.prev_cluster_id, pe_tracker=pe_tracker
             )
             log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
 
