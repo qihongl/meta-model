@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from utils import to_pth, to_np
+from torch.nn.functional import softmax
 
 class CGRU_v2(nn.Module):
 
@@ -41,6 +42,7 @@ class CGRU_v2(nn.Module):
         # compute
         self.try_reset_h = try_reset_h
         self.reset_parameters()
+        self.init_pe_history()
 
     def reset_parameters(self):
         std = 1.0 / math.sqrt(self.hidden_dim)
@@ -48,6 +50,17 @@ class CGRU_v2(nn.Module):
         for w in self.parameters():
             w.data.uniform_(-std, std)
 
+    def init_pe_history(self, pe_history_size=2048):
+        self.pe_history = []
+        self.pe_history_size = pe_history_size
+
+    def extend_pe_history(self, pes):
+        self.pe_history.extend(pes)
+        if len(self.pe_history) > self.pe_history_size:
+            self.pe_history = self.pe_history[len(pes):]
+
+    def get_low_pe(self, n_std=2):
+        return np.mean(self.pe_history) - np.std(self.pe_history) * n_std
 
     def forward(self, x, hidden, context_t=None):
         hidden = hidden.view(-1)
@@ -85,8 +98,8 @@ class CGRU_v2(nn.Module):
 
 
     def try_all_contexts(
-        self, y_t, x_t, h_t, contexts,
-        prev_context_id=None, pe_tracker=None, verbose=True
+            self, y_t, x_t, h_t, contexts,
+            prev_context_id=None, pe_tracker=None, verbose=True
         ):
         # loop over all ctx ...
         n_contexts = len(contexts)
@@ -98,16 +111,16 @@ class CGRU_v2(nn.Module):
         for k in range(n_contexts):
             yhat_k = self.forward_nograd(x_t, h_t, to_pth(contexts[k]))
             loss[k] = self.criterion(y_t, torch.squeeze(yhat_k))
-            sigma_k = pe_tracker.get_sigma(k)
-            sigma[k] = sigma_k
-            # print(k, sigma_k)
-            pe[k] = compute_loglik(to_np(y_t - yhat_k), sigma_k)
-            ydiff[k] = torch.norm(yhat_k - y_t)
+            # sigma_k = pe_tracker.get_sigma(k)
+            # sigma[k] = sigma_k
+            # pe[k] = compute_loglik(to_np(y_t - yhat_k), sigma_k)
+            # ydiff[k] = torch.norm(yhat_k - y_t)
             # z stats
             # print(f'ctx id = {k}')
             # print(f'loss[k] = {loss[k]}')
             # print(f'k / len(ctxs) = {k} / {len(contexts)}')
             # pe[k] = pe_tracker.get_z_stats(k, loss[k])
+            # print(k, sigma_k)
 
         # whether to add the loss for restarting the ongoing context
         if prev_context_id is not None and self.try_reset_h:
@@ -118,35 +131,46 @@ class CGRU_v2(nn.Module):
             # append the restarting PE at the end of the list
             loss = torch.cat([loss, loss_prev_restart.view(1)])
 
-            # append pe
-            sigma_prev = pe_tracker.get_sigma(prev_context_id)
-            pe_prev_restart = compute_loglik(to_np(y_t - yhat_prev_restart), sigma_prev)
-            pe = torch.cat([pe, torch.tensor(pe_prev_restart).view(1)])
-            ydiff = torch.cat([pe, torch.norm(yhat_prev_restart - y_t).view(1)])
+            # # append pe
+            # sigma_prev = pe_tracker.get_sigma(prev_context_id)
+            # pe_prev_restart = compute_loglik(to_np(y_t - yhat_prev_restart), sigma_prev)
+            # pe = torch.cat([pe, torch.tensor(pe_prev_restart).view(1)])
+            # ydiff = torch.cat([pe, torch.norm(yhat_prev_restart - y_t).view(1)])
 
             # pe_prev_restart = pe_tracker.get_z_stats(prev_context_id, loss_prev_restart)
             # pe = torch.cat([pe, torch.tensor(pe_prev_restart).view(1)])
             # ydiff = torch.cat([pe, torch.norm(yhat_prev_restart - y_t).view(1)])
 
-        # softmax the pe
-        # pe = loss
-        if self.softmax_beta is not None:
-            # lik = stable_softmax(to_np(pe), 2)
-            lik = stable_softmax(to_np(pe), self.softmax_beta)
-        else:
-            lik = to_np(pe)
+        # # # softmax the pe
+        # self.extend_pe_history(pe[1:])
+        # pe[0] = torch.tensor(self.get_low_pe(n_std=-1))
 
+
+
+        # print()
+        # print('low pe = %.2f' % (pe[0]))
         # print('loss:')
         # print(loss)
         # print('ydiff:')
         # print(ydiff)
-        #
         # print('PE:')
         # print(pe)
+        # print()
+
+        pe = loss
+        if self.softmax_beta is not None:
+            # lik = stable_softmax(to_np(pe), 2)
+            lik = stable_softmax(to_np(pe), self.softmax_beta)
+            # lik = softmax(pe, dim=0)
+        else:
+            lik = to_np(pe)
+        # lik = to_np(pe)
+
         # print('LIK:')
         # print(lik)
         # print()
         return lik
+
 
 
     def get_kaiming_states(self):
@@ -195,7 +219,7 @@ def get_weights(layer_name, model, to_np=True):
 def stable_softmax(x, beta=1/3, subtract_max=True):
     assert beta > 0
     if subtract_max:
-        x -= max(x)
+        x = x - max(x)
     # apply temperture
     z = x / beta
     return np.exp(z) / (np.sum(np.exp(z)) + 1e-010)

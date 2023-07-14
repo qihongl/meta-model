@@ -10,9 +10,9 @@ n_pe_std=3
 
 for subj_id in {0..11}
 do
-  for lr in 1e-3 3e-4
+  for lr in 1e-4
   do
-    for update_freq in 2
+    for update_freq in 32
     do
       for dim_context in 256
       do
@@ -20,7 +20,7 @@ do
         do
           for stickiness in 1 2 4
           do
-            for concentration in .5 1
+            for concentration in .5 1 2
             do
               for try_reset_h in 0 1
               do

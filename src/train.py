@@ -37,15 +37,15 @@ sbatch train.sh 99 1e-3 10 16 256 .5 .5 .5
 matplotlib.use('Agg')
 parser = argparse.ArgumentParser()
 parser.add_argument('--subj_id', default=99, type=int)
-parser.add_argument('--lr', default=1e-3, type=float)
-parser.add_argument('--update_freq', default=2, type=int)
+parser.add_argument('--lr', default=1e-4, type=float)
+parser.add_argument('--update_freq', default=32, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
 parser.add_argument('--dim_context', default=256, type=int)
 parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=1.5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
-parser.add_argument('--concentration', default=1, type=float)
-parser.add_argument('--stickiness', default=.5, type=float)
+parser.add_argument('--concentration', default=2, type=float)
+parser.add_argument('--stickiness', default=2, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
 parser.add_argument('--pe_tracker_size', default=256, type=int)
@@ -176,12 +176,16 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     log_pe_peak = [[] for _ in range(len(event_id_list))]
 
     permed_order = np.random.permutation(range(len(event_id_list)))
+
     for i, pi in enumerate(permed_order):
+        # '''TODO testing '''
+        # i, pi = 0, 0
         event_id = event_id_list[pi]
         # save data for every other k epochs
         if save_weights and i % save_freq == 0:
             save_ckpt(i, p.log_dir, agent, optimizer, sc.to_dict(), verbose=0)
         print(f'Learning event {i} / {len(event_id_list)} - {event_id}')
+
         t_start = time.time()
         # get data
         X, t_f1 = dl.get_data(event_id, get_t_frame1=True)
@@ -197,13 +201,15 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
         # run the model over time
         loss = 0
+        losses = []
         h_t = agent.get_init_states()
         for t in range(T):
-            # print(f'i = {i} \t t = {t}')
+            # print(f'i = {i} \t t = {t}', end = '  ')
             # forward
             [y_t_hat, h_t], cache = agent.forward(X[t], h_t, to_pth(c_vec))
             # record losses
             loss_it = agent.criterion(torch.squeeze(y_t_hat), X[t+1])
+            losses.append(loss_it)
             loss += loss_it
             loss_by_events[i].append(to_np(loss_it))
 
@@ -226,10 +232,14 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             c_vec = sc.context[log_cid_i[t]]
 
             # update weights for every other t time points
-            if learning and t % update_freq == 0:
-                optimizer.zero_grad()
-                loss.backward(retain_graph=True)
-                optimizer.step()
+            # if learning and t % update_freq == 0:
+            #     optimizer.zero_grad()
+            #     loss.backward(retain_graph=True)
+            #     optimizer.step()
+
+            optimizer.zero_grad()
+            torch.sum(torch.stack(losses[-update_freq:])).backward(retain_graph=True)
+            optimizer.step()
 
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
@@ -238,7 +248,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         log_use_sc[i] = log_use_sc_i
         log_pe_peak[i] = log_pe_peak_i
 
-        print('Time elapsed = %.2f sec' % (time.time() - t_start))
+        print('Time elapsed = %.2f sec | Loss %.2f' % ((time.time() - t_start), loss / T))
     # save the final weights
     if save_weights:
         save_ckpt(len(event_id_list), p.log_dir, agent, optimizer, sc.to_dict(), verbose=True)
