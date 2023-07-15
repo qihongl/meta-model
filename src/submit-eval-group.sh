@@ -9,17 +9,17 @@ match_tracker_size=4
 n_pe_std=3
 
 
-for lr in 3e-4
+for lr in 1e-4
 do
-  for update_freq in 2
+  for update_freq in 4 32
   do
     for dim_context in 256
     do
       for dim_hidden in 16
       do
-        for stickiness in 1 2 4 8
+        for stickiness in 2 4 8
         do
-          for concentration in .5 .75 1
+          for concentration in .5 1
           do
             for try_reset_h in 0 1
             do
