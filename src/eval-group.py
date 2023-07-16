@@ -147,13 +147,38 @@ def vec_to_sec(vec):
 def ctx_vec_to_sec(vec):
     return [Counter(vec[t:t+3]).most_common()[0][0] for t in range(0, len(vec), 3)]
 
+# def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
+#     r_perm = np.zeros(n_perms, )
+#     all_event_segs = []
+#     for i, model_bounds_list_i in enumerate(model_bounds_list):
+#         all_event_segs.extend(get_event_segments(model_bounds_list_i))
+#     for i in range(n_perms):
+#         random.shuffle(all_event_segs)
+#         r_perm[i], _ = get_point_biserial(
+#             np.concatenate(all_event_segs), np.concatenate(phuman_bounds_list)
+#         )
+#     r, _ = get_point_biserial(
+#         np.concatenate(model_bounds_list), np.concatenate(phuman_bounds_list)
+#     )
+#     return r_perm, r
 
 def compute_corr_with_perm(model_bounds_list, phuman_bounds_list, n_perms = 500):
     r_perm = np.zeros(n_perms, )
+    # get all event segments
     all_event_segs = []
-    for i, model_bounds_list_i in enumerate(model_bounds_list):
-        all_event_segs.extend(get_event_segments(model_bounds_list_i))
+    for mbci in model_bounds_list:
+        mbci[-1] = 1
+        event_bound_locs = np.where(mbci)[0]
+        event_bound_locs = [0] + list(event_bound_locs)
+        for j in range(1, len(event_bound_locs)):
+            pad = 0 if j == 1 else 1
+            event_ij = mbci[event_bound_locs[j-1]+pad : event_bound_locs[j]+1]
+            assert event_ij[-1] == 1
+            assert sum(event_ij) == 1
+            all_event_segs.append(event_ij)
+    # for each permutation
     for i in range(n_perms):
+        # shuffle all events
         random.shuffle(all_event_segs)
         r_perm[i], _ = get_point_biserial(
             np.concatenate(all_event_segs), np.concatenate(phuman_bounds_list)
