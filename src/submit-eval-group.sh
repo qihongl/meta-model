@@ -9,7 +9,7 @@ match_tracker_size=4
 n_pe_std=3
 
 
-for lr in 1e-4
+for lr in 1e-4 5e-4
 do
   for update_freq in 4 32
   do
@@ -17,11 +17,11 @@ do
     do
       for dim_hidden in 16
       do
-        for stickiness in 2 4 8
+        for stickiness in 1 2 4
         do
-          for concentration in .5 1
+          for concentration in .5 1 2
           do
-            for try_reset_h in 0 1
+            for try_reset_h in 0
             do
               # use_shortcut=1
               # for gen_grad in .1 .5 3
