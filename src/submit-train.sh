@@ -14,11 +14,11 @@ do
   do
     for update_freq in 4
     do
-      for dim_context in 256 512 
+      for dim_context in 128 256
       do
         for dim_hidden in 16
         do
-          for stickiness in 2 4 8
+          for stickiness in 4 8 16
           do
             for concentration in .5 1 1.5 2
             do
