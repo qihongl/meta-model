@@ -8,7 +8,8 @@
 
 LOGROOT=/tigress/qlu/logs/meta-model/log
 # LOGROOT=/scratch/gpfs/qlu/logs/meta-model/log
-DT=2023-07-17
+# DT=2023-07-17
+DT=freeze-ctx-test
 # DT=new-mem
 
 echo $(date)

@@ -13,7 +13,7 @@ for lr in 1e-3
 do
   for update_freq in 4
   do
-    for dim_context in 128 256
+    for dim_context in 128
     do
       for dim_hidden in 16
       do
@@ -21,7 +21,7 @@ do
         do
           for concentration in .5 1 1.5 2
           do
-            for try_reset_h in 0
+            for try_reset_h in 0 1
             do
               # use_shortcut=1
               # for gen_grad in .1 .5 3
