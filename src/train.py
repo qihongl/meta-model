@@ -162,9 +162,9 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         _, c_vec = sc.init_context()
     else:
         save_weights = True
-        learning = False
+        learning = True
         c_vec = sc.context[sc.prev_cluster_id]
-        sc.freeze()
+        # sc.freeze()
         # c_vec = sc.context[0]
 
     # prealooc
@@ -237,11 +237,11 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             #     optimizer.zero_grad()
             #     loss.backward(retain_graph=True)
             #     optimizer.step()
-            if learning:
+            # if learning:
             # if learning and t % update_freq == 0:
-                optimizer.zero_grad()
-                torch.sum(torch.stack(losses[-update_freq:])).backward(retain_graph=True)
-                optimizer.step()
+            optimizer.zero_grad()
+            torch.sum(torch.stack(losses[-update_freq:])).backward(retain_graph=True)
+            optimizer.step()
 
 
         log_cid[i] = log_cid_i
