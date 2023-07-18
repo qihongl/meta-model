@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 3:55:00
+#SBATCH -t 1:55:00
 #SBATCH -c 1
 #SBATCH --mem-per-cpu 8G
 
@@ -8,7 +8,7 @@
 
 LOGROOT=/tigress/qlu/logs/meta-model/log
 # LOGROOT=/scratch/gpfs/qlu/logs/meta-model/log
-DT=2023-07-16
+DT=2023-07-17
 # DT=new-mem
 
 echo $(date)
