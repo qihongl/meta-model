@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -t 23:59:00
 #SBATCH -c 1
-#SBATCH --mem-per-cpu 8G
+#SBATCH --mem-per-cpu 2G
 
 #SBATCH --job-name=meta-run-cgru
 #SBATCH --output slurm_log/%j.log

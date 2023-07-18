@@ -99,10 +99,13 @@ class SimpleContext():
             print('prior = ', prior)
         return likelihood * prior
 
+
     def assign_context(self, likelihood, verbose=1):
         # if np.any(likelihood) <= 0: print(likelihood)
         reset_h = False
         posterior = self.compute_posterior(likelihood)
+        if self.frozen:
+            posterior[0] = -777
         # find the max posterior context id
         max_pos_cid = np.argmax(posterior)
         # if infer a new LC

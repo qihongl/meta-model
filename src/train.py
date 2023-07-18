@@ -44,7 +44,7 @@ parser.add_argument('--dim_context', default=256, type=int)
 parser.add_argument('--use_shortcut', default=1, type=float)
 parser.add_argument('--gen_grad', default=1.5, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
-parser.add_argument('--concentration', default=2, type=float)
+parser.add_argument('--concentration', default=1.5, type=float)
 parser.add_argument('--stickiness', default=2, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
@@ -162,8 +162,9 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         _, c_vec = sc.init_context()
     else:
         save_weights = True
-        learning = True
+        learning = False
         c_vec = sc.context[sc.prev_cluster_id]
+        sc.freeze()
         # c_vec = sc.context[0]
 
     # prealooc
@@ -236,10 +237,12 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             #     optimizer.zero_grad()
             #     loss.backward(retain_graph=True)
             #     optimizer.step()
+            if learning:
+            # if learning and t % update_freq == 0:
+                optimizer.zero_grad()
+                torch.sum(torch.stack(losses[-update_freq:])).backward(retain_graph=True)
+                optimizer.step()
 
-            optimizer.zero_grad()
-            torch.sum(torch.stack(losses[-update_freq:])).backward(retain_graph=True)
-            optimizer.step()
 
         log_cid[i] = log_cid_i
         log_cid_fi[i] = log_cid_fi_i
