@@ -48,22 +48,6 @@ class SimpleContext():
     def unfreeze(self):
         self.frozen = False
 
-    # def add_new_context(self):
-    #     '''
-    #     sample a random vector to represent the k-th context
-    #     this is useful because
-    #     - random vectors are easy to get
-    #     - random vectors are roughly orthogonal
-    #     '''
-    #     # set ctx 0 to be the added context
-    #     self.context.append(self.context[0])
-    #     # find another vector as the novel context
-    #     novel_context = self.random_vector()
-    #     self.context[0] = novel_context
-    #
-    #     # self.context.append(novel_context)
-    #     self.n_context += 1
-    #     return self.n_context, self.context[0]
 
     def add_new_context(self):
         '''
@@ -74,7 +58,6 @@ class SimpleContext():
         '''
         # set ctx 0 to be the added context
         self.context.append(self.random_vector())
-
         # self.context.append(novel_context)
         self.n_context += 1
         return self.n_context, self.context[-1]
@@ -116,6 +99,10 @@ class SimpleContext():
                 print(f'adding the {self.n_context}-th context! RESET H! c = {self.context[max_pos_cid][:3]}!')
 
         elif self.try_reset_h and max_pos_cid == len(likelihood) - 1: # if it is the last index
+            # print(likelihood)
+            # print(posterior)
+            # print(max_pos_cid, self.prev_cluster_id)
+            # assert max_pos_cid == self.prev_cluster_id
             max_pos_cid = self.prev_cluster_id
             reset_h = True
             if verbose >= 1:

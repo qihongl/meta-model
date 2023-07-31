@@ -119,7 +119,7 @@ class CGRU_v2(nn.Module):
             # print(f'ctx id = {k}')
             # print(f'loss[k] = {loss[k]}')
             # print(f'k / len(ctxs) = {k} / {len(contexts)}')
-            # pe[k] = pe_tracker.get_z_stats(k, loss[k])
+            pe[k] = pe_tracker.get_z_stats(k, loss[k])
             # print(k, sigma_k)
 
         # whether to add the loss for restarting the ongoing context

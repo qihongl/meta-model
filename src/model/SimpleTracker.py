@@ -30,6 +30,11 @@ class SimpleTracker():
         #     else:
         #         self.unique[ctx_id] = False
 
+    def use_shortcut_t(self, ctx_id):
+        if not self.ctx_in_tracker(ctx_id):
+            return False
+        return self.accurate[ctx_id]
+
     def is_unique(self, ctx_id):
         if not self.ctx_in_tracker(ctx_id):
             return False
@@ -64,10 +69,16 @@ class SimpleTracker():
         return np.std(self.buffer[ctx_id])
 
     def get_z_stats(self, ctx_id, value):
+        high_z = 3
         if not self.ctx_in_tracker(ctx_id):
-            return None
+            return high_z
         # compute the z stats
-        z = (value - np.mean(self.buffer[ctx_id])) / np.std(self.buffer[ctx_id])
+        # return (value - np.mean(self.buffer[ctx_id])) / np.std(self.buffer[ctx_id])
+        if len(self.buffer[ctx_id]) >= 3:
+            z = (value - np.mean(self.buffer[ctx_id])) / np.std(self.buffer[ctx_id])
+        else:
+            z = high_z
+        # assert z is not None
         return z
 
     def peaked(self, ctx_id, n_std, value):

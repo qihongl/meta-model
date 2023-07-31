@@ -41,16 +41,16 @@ parser.add_argument('--lr', default=1e-4, type=float)
 parser.add_argument('--update_freq', default=32, type=int)
 parser.add_argument('--dim_hidden', default=16, type=int)
 parser.add_argument('--dim_context', default=256, type=int)
-parser.add_argument('--use_shortcut', default=1, type=float)
-parser.add_argument('--gen_grad', default=1.5, type=float)
+parser.add_argument('--use_shortcut', default=0, type=float)
+parser.add_argument('--gen_grad', default=0.25, type=float)
 parser.add_argument('--ctx_wt', default=.5, type=float)
-parser.add_argument('--concentration', default=1.5, type=float)
+parser.add_argument('--concentration', default=1, type=float)
 parser.add_argument('--stickiness', default=2, type=float)
 parser.add_argument('--lik_softmax_beta', default=.33, type=float)
 parser.add_argument('--try_reset_h', default=0, type=int)
 parser.add_argument('--pe_tracker_size', default=256, type=int)
 parser.add_argument('--match_tracker_size', default=8, type=int)
-parser.add_argument('--n_pe_std', default=2, type=int)
+parser.add_argument('--n_pe_std', default=0.1, type=int)
 parser.add_argument('--exp_name', default='testing', type=str)
 parser.add_argument('--log_root', default='../log', type=str)
 args = parser.parse_args()
@@ -147,11 +147,11 @@ optimizer = torch.optim.Adam(agent.parameters(), lr=p.lr)
 sc = SimpleContext(p.dim_context, p.stickiness, p.concentration, p.try_reset_h)
 # c_id, c_vec = sc.init_context()
 # init the shortcut
-# sm = SimpleMemory(input_dim=p.dim_input, d=p.gen_grad, lr=.2)
+sm = SimpleMemory(input_dim=p.dim_input, d=p.gen_grad)
 
 # loss_tracker = SimpleTracker(size=pe_tracker_size)
 pe_tracker = SimpleTracker(size=pe_tracker_size)
-# match_tracker = SimpleTracker(size=match_tracker_size)
+match_tracker = SimpleTracker(size=match_tracker_size)
 
 '''train the model'''
 
@@ -203,6 +203,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         # run the model over time
         loss = 0
         losses = []
+        len_cur_event = 0
         h_t = agent.get_init_states()
         for t in range(T):
             # print(f'i = {i} \t t = {t}', end = '  ')
@@ -214,34 +215,65 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             loss += loss_it
             loss_by_events[i].append(to_np(loss_it))
 
-            # if use full inference, record full inf PE as the baseline
-            pe_tracker.add(log_cid_fi_i[t-1], to_np(torch.squeeze(y_t_hat) - X[t+1]))
-            # loss_tracker.add(log_cid_fi_i[t-1], to_np(loss_it))
+            # short cut inference
+            if t > 0:
+                log_cid_sc_i[t] = sm.predict(np.mean(to_np(X[t-len_cur_event:t]),axis=0))
+            # print(log_cid_sc_i[t])
 
-            # context - full inference
-            lik = agent.try_all_contexts(
-                X[t+1], X[t], h_t, sc.context,
-                prev_context_id=sc.prev_cluster_id, pe_tracker=pe_tracker
-            )
-            log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
+            # # if use shortcut, decide whether to turn off shortcut based on PE
+            # if use_shortcut and t > 0 and log_use_sc_i[t-1]:
+            #     if pe_tracker.peaked(log_cid_sc_i[t-1], n_pe_std, to_np(loss_it)):
+            #         match_tracker.reinit_ctx_buffer(log_cid_sc_i[t-1])
+            #         log_pe_peak_i[t] = True
+            #         # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut,
+            #         # turn off ctx {log_cid_sc_i[t]}')
+            # # else:
+            #     # if use full inference, record full inf PE as the baseline
+            #     # pe_tracker.add(log_cid_fi_i[t-1], loss_by_events[i][t-1])
 
-            # if use full inference...
-            log_cid_i[t] = log_cid_fi_i[t]
-            # if reset h is the best, then reset it
-            h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
-            # update the current context vector
+            # check if shortcut has been accurate for this context id
+            if np.all(log_pe_peak_i[-match_tracker_size:]== False):
+                log_use_sc_i[t] = sm.is_not_null(log_cid_sc_i[t])
+            if use_shortcut and log_use_sc_i[t]:
+                log_cid_i[t] = log_cid_sc_i[t]
+                sc.prev_cluster_id = log_cid_sc_i[t]
+                # print(f'use short cut on ctx {log_cid_sc_i[t]}')
+                log_pe_peak_i[t] = pe_tracker.peaked(log_cid_sc_i[t], n_pe_std, to_np(loss_it))
+            else:
+                # context - full inference
+                lik = agent.try_all_contexts(X[t+1], X[t], h_t, sc.context, sc.prev_cluster_id, pe_tracker=pe_tracker)
+                log_cid_fi_i[t], log_reset_h_i[t] = sc.assign_context(lik, verbose=1)
+                # if use full inference...
+                log_cid_i[t] = log_cid_fi_i[t]
+                #
+                pe_tracker.add(log_cid_fi_i[t], loss_by_events[i][-1])
+                # if reset h is the best, then reset it
+                h_t = agent.get_init_states() if log_reset_h_i[t] else h_t
+                # add experience to the shortcut buffer, and record match
+                # sm.add_data(to_np(X[t]), log_cid_fi_i[t])
+                if t in [16, 32, 64, 128, 256, 512]:
+                    # print(t-len_cur_event, t)
+                    # print(to_np(X[t-len_cur_event:t]))
+                    # print(np.mean(to_np(X[t-len_cur_event:t]),axis=0))
+                    sm.add_data(np.mean(to_np(X[t-len_cur_event:t]),axis=0), log_cid_fi_i[t])
+
+                #
+                match_tracker.add(log_cid_sc_i[t], log_cid_fi_i[t] == log_cid_sc_i[t])
+            # print(float(torch.sum(h_t)), log_reset_h_i[t])
+            # get the context vector
             c_vec = sc.context[log_cid_i[t]]
 
             # update weights for every other t time points
-            # if learning and t % update_freq == 0:
-            #     optimizer.zero_grad()
-            #     loss.backward(retain_graph=True)
-            #     optimizer.step()
-            # if learning:
-            # if learning and t % update_freq == 0:
             optimizer.zero_grad()
             torch.sum(torch.stack(losses[-update_freq:])).backward(retain_graph=True)
             optimizer.step()
+
+            # increment the length of this event
+            if log_cid_i[t-1] != sc.prev_cluster_id or log_reset_h_i[t]:
+                len_cur_event = 0
+            len_cur_event += 1
+
+            # print(f'len_cur_event = {len_cur_event}, cur/prev context id = {log_cid_i[t]}/{sc.prev_cluster_id}')
 
 
         log_cid[i] = log_cid_i

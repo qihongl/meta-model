@@ -69,7 +69,7 @@ for i, event_id in enumerate(event_id_list):
     print(f'Event {i} / {len(event_id_list)} - {event_id}')
     # load metadata
     X, t_f1 = dl.get_data(event_id, get_t_frame1=True, to_torch=False)
-    X = (X - np.mean(X,axis=0)) / np.std(X,axis=0)
+    # X = (X - np.mean(X,axis=0)) / np.std(X,axis=0)
     t_f1 = np.round(t_f1)
     # get ground truth boundaries
     df_i = evlab.get_subdf(event_id)
@@ -202,7 +202,7 @@ f, ax = plt.subplots(1,1, figsize=(6,3))
 sns.kdeplot(dist_mat_diff_event_id.ravel(), label = 'different event ids', ax=ax)
 sns.kdeplot(dist_mat_same_event_id.ravel(), label = 'same event id', ax=ax)
 ax.set_xlabel('cosine distances')
-ax.set_title('d prime = %.2f' % dprime)
+ax.set_title('cohen\'s d = %.2f' % dprime)
 # v = 5.075
 # ax.axvline(v, ls='--', color='grey', label = 'd = %.2f' % v)
 ax.legend()
