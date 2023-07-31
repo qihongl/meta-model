@@ -13,22 +13,14 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-
 from sklearn.metrics import mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.decomposition import PCA
 from model import Vanilla_iSITH
-from utils import ID2CHAPTER, split_video_id, to_np
+from utils import ID2CHAPTER, split_video_id, to_np, erwa
 from utils import EventLabel, TrainValidSplit, DataLoader, HumanBondaries
 sns.set(style='white', palette='colorblind', context='talk')
 
-def erwa(data, decay_factor):
-    data = data[:,::-1]
-    num_features, num_time_steps = data.shape
-    weights = np.power(decay_factor, np.arange(num_time_steps))
-    weighted_data = data * weights.reshape(1, -1)
-    erwa_result = np.sum(weighted_data, axis=1) / np.sum(weights)
-    return erwa_result
 
 # SITH
 input_dim = 30
@@ -57,12 +49,14 @@ evlab = EventLabel()
 event_id_list = tvs.all_ids
 t_f1 = np.zeros(len(event_id_list))
 
+
+
+# pre-allocate
 subev_ids = []
 scene_vecs = []
 scene_vecs_sith = []
-scene_vec_len = []
+event_duration = []
 n_train_scene_vecs = None
-
 # loop over events
 # event_id = '1.3.4'
 for i, event_id in enumerate(event_id_list):
@@ -81,6 +75,7 @@ for i, event_id in enumerate(event_id_list):
             t_end = len(X)
         if t_start > len(X):
             continue
+        event_dur = t_end - t_start
         t_start, t_end = int(t_start * 3), int(t_end * 3)
         # compute scene vector as the mean
         # sv = np.mean(X[t_start: t_end, :], axis=0)
@@ -96,7 +91,7 @@ for i, event_id in enumerate(event_id_list):
         sv_sith = isith.simple_forward(sith_in)
 
         # aggregate info
-        scene_vec_len.append(t_end - t_start)
+        event_duration.append(event_dur)
         subev_id = list(evlab.all_subev_names).index(evname)
         subev_ids.append(subev_id)
         scene_vecs.append(sv)
@@ -114,8 +109,8 @@ print(f'detected nan data {np.sum(np.isnan(scene_vecs))}')
 print(f'sith data shape : {np.shape(scene_vecs_sith)}')
 
 # f, ax = plt.subplots(1,1, figsize = (7, 4))
-# sns.histplot(scene_vec_len,ax=ax)
-# mean_scene_vec_len = np.mean(scene_vec_len)
+# sns.histplot(event_duration,ax=ax)
+# mean_scene_vec_len = np.mean(event_duration)
 # ax.axvline(mean_scene_vec_len, ls='--', color='k',label='mean = %.2f' % (mean_scene_vec_len))
 # ax.set_title('distribution of event length')
 # ax.legend()

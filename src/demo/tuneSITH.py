@@ -7,9 +7,10 @@ sns.set(style='white', palette='colorblind', context='talk')
 
 
 def min_fun(x, *args):
+    '''written by Beeg Jacques'''
     ntau = int(args[2])
     k = int(x[0])
-    if k < 4 or k>125:
+    if k < 4 or k > 125:
         return np.inf
     tau_min = args[0]
     tau_max = args[1]

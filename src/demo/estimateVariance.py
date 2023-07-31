@@ -46,27 +46,49 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(style='white', palette='colorblind', context='poster')
 
-dim_input = 5
-n = 1
-X = np.random.normal(0, 1, size= (n, dim_input))
-# noise = np.array([.001, .01, .1, 1, 10])
-noise = 1
-X_hat = X + np.random.normal(0, 1, size= (n, dim_input)) * noise
-np.shape(X_hat)
-np.shape(X)
-# estimate variance at time t using the data from the past time steps
-Sigma = map_variance(X-X_hat)
+noise_scale = 1
+for noise_scale in [.1, 1, 10]:
+
+    dim_input = 5
+    n = 10
+    X = np.random.normal(0, 1, size= (n, dim_input))
+    noise = np.array([.001, .01, .1, 1, 10]) * noise_scale
+    # noise = 1
+    X_hat = X + np.random.normal(0, 1, size= (n, dim_input)) * noise
+
+    np.shape(X)
+    # estimate variance at time t using the data from the past time steps
+    Sigma = map_variance(X - X_hat)
+
+    # f, ax = plt.subplots(1,1, figsize = (6, 3))
+    # ax.plot(np.mean(X - X_hat, axis=0))
+    # ax.set_xlabel('input dim')
+    # ax.set_ylabel('diff')
+    #
+    # f, ax = plt.subplots(1,1, figsize = (6, 3))
+    # ax.plot(Sigma)
+    # ax.set_xlabel('input dim')
+    # ax.set_ylabel('sigma value')
 
 
-t = -1
-Xt = X[-1]
-Xt_hat = X_hat[-1]
-
-# compute the LL for the prediction at time t, which require Sigma
-LL = compute_loglik(Xt.reshape(-1) - Xt_hat.reshape(-1), Sigma)
-np.exp(LL)
+    # np.std(X, axis=0)
 
 
-# plt.plot(np.log(Sigma))
+    t = -1
+    Xt = X[-1]
+    Xt_hat = X_hat[-1]
 
-np.shape(np.stack([np.ones(30), np.ones(30)]))
+    # compute the LL for the prediction at time t, which require Sigma
+    LL = compute_loglik(Xt.reshape(-1) - Xt_hat.reshape(-1), Sigma)
+
+    print(LL)
+    # print(np.exp(LL))
+
+
+    # # plt.plot(np.log(Sigma))
+    #
+    # # np.shape(np.stack([np.ones(30), np.ones(30)]))
+    #
+    # x = Xt.reshape(-1) - Xt_hat.reshape(-1)
+    # variances = Sigma
+    # -0.5 * (log_2pi * np.shape(x)[0] + np.sum(np.log(variances) + (x**2) / variances ))

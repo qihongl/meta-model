@@ -13,6 +13,8 @@ from sklearn.metrics import mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
 from utils import ID2CHAPTER, split_video_id
 from utils import EventLabel, TrainValidSplit, DataLoader, HumanBondaries
 from model import SimpleMemory
@@ -21,6 +23,9 @@ sns.set(style='white', palette='colorblind', context='talk')
 dl = DataLoader()
 tvs = TrainValidSplit()
 evlab = EventLabel()
+
+ss = StandardScaler()
+
 
 # choose dataset
 event_id_list = tvs.all_ids
@@ -37,6 +42,7 @@ for i, event_id in enumerate(event_id_list):
     # print(f'Event {i} / {len(event_id_list)} - {event_id}')
     # load data
     X, t_f1 = dl.get_data(event_id, get_t_frame1=True, to_torch=False)
+    X = (X - np.mean(X,axis=0)) / np.std(X,axis=0)
     t_f1 = np.round(t_f1)
     # get ground truth boundaries
     df_i = evlab.get_subdf(event_id)
@@ -62,7 +68,6 @@ for i, event_id in enumerate(event_id_list):
         l_ = np.min([this_event_len, max_len])
 
         # scene_vecs.append(X[t_start: t_end, :])
-        # subev_ids.append([subev_id] * (t_end - t_start))
         scene_vecs.append(X[t_start: t_start + l_, :])
         subev_ids.append([subev_id] * l_)
 
@@ -87,13 +92,13 @@ print(f'X test shape : {np.shape(data_test)}')
 print(f'Y test shape : {np.shape(labels_test)}')
 
 
-pca = PCA(n_components=2)
-data_pc = pca.fit_transform(data)
-data_pc_test = pca.fit_transform(data_test)
-
-f, ax = plt.subplots(1,1, figsize=(7,5))
-ax.scatter(data_pc[:,0], data_pc[:,1], c=labels, cmap = 'viridis')
-ax.legend()
+# pca = PCA(n_components=2)
+# data_pc = pca.fit_transform(data)
+# data_pc_test = pca.fit_transform(data_test)
+#
+# f, ax = plt.subplots(1,1, figsize=(7,5))
+# ax.scatter(data_pc[:,0], data_pc[:,1], c=labels, cmap = 'viridis')
+# ax.legend()
 
 # f, ax = plt.subplots(1,1, figsize=(7,5))
 # ax.scatter(data_pc[:,0], data_pc[:,1])
@@ -108,11 +113,12 @@ lr = .5
 # d = .2
 # ds = [.1, .2, .4, 1, 2]
 majority_p = .2
-ds = [3, 5, 8]
+# ds = [3, 5, 8]
+ds = [5]
 
 for d in ds:
 
-    sm = SimpleMemory(input_dim=input_dim, d=d, majority_p=majority_p, lr=lr)
+    sm = SimpleMemory(input_dim=input_dim, d=d, majority_p=majority_p)
     Y_hat = np.zeros((n_samples, n_samples_test))
     acc = np.zeros((n_samples, ))
     mis = np.zeros((n_samples, ))
