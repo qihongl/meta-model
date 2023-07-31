@@ -8,7 +8,7 @@
 
 LOGROOT=/tigress/qlu/logs/meta-model/log
 # LOGROOT=/scratch/gpfs/qlu/logs/meta-model/log
-DT=2023-07-18
+DT=2023-07-31
 # DT=freeze-ctx-test
 # DT=new-mem
 
