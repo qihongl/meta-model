@@ -216,20 +216,8 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
             loss_by_events[i].append(to_np(loss_it))
 
             # short cut inference
-            if t > 0:
+            if use_shortcut and t > 0:
                 log_cid_sc_i[t] = sm.predict(np.mean(to_np(X[t-len_cur_event:t]),axis=0))
-            # print(log_cid_sc_i[t])
-
-            # # if use shortcut, decide whether to turn off shortcut based on PE
-            # if use_shortcut and t > 0 and log_use_sc_i[t-1]:
-            #     if pe_tracker.peaked(log_cid_sc_i[t-1], n_pe_std, to_np(loss_it)):
-            #         match_tracker.reinit_ctx_buffer(log_cid_sc_i[t-1])
-            #         log_pe_peak_i[t] = True
-            #         # print(f'PE peaked ({to_np(loss_it)}) while using the shortcut,
-            #         # turn off ctx {log_cid_sc_i[t]}')
-            # # else:
-            #     # if use full inference, record full inf PE as the baseline
-            #     # pe_tracker.add(log_cid_fi_i[t-1], loss_by_events[i][t-1])
 
             # check if shortcut has been accurate for this context id
             if np.all(log_pe_peak_i[-match_tracker_size:]== False):

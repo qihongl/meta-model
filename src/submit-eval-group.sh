@@ -29,7 +29,7 @@ do
                   do
                     for match_tracker_size in 4
                     do
-                      for n_pe_std in .01 .1 .2
+                      for n_pe_std in .5 1 2
                       do
                       sbatch eval-group.sh \
                            ${subj_id} \
