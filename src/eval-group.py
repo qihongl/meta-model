@@ -227,8 +227,7 @@ def compute_mi_with_perm(mod_evn_label, sub_evn_label, n_perms = 500):
     return mi_perm, mi
 
 
-def tree(dir_path: Path, level: int=-1, limit_to_directories: bool=False,
-         length_limit: int=1000):
+def tree(dir_path: Path, level: int=-1, limit_to_directories: bool=False, length_limit: int=1000):
     space =  '    '
     branch = '│   '
     tee =    '├── '
