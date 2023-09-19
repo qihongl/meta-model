@@ -16,7 +16,7 @@ do
     do
       for dim_context in 128
       do
-        for dim_hidden in 16
+        for dim_hidden in 8 32 
         do
           for stickiness in 4
           do
