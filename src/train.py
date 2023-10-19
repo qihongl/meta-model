@@ -13,7 +13,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-
+from copy import deepcopy
 from tqdm import tqdm
 from collections import Counter
 from sklearn.preprocessing import StandardScaler
@@ -175,6 +175,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     log_reset_h = [[] for _ in range(len(event_id_list))]
     log_use_sc = [[] for _ in range(len(event_id_list))]
     log_pe_peak = [[] for _ in range(len(event_id_list))]
+    log_h = [[] for _ in range(len(event_id_list))]
 
     permed_order = np.random.permutation(range(len(event_id_list)))
 
@@ -199,6 +200,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         log_reset_h_i = np.zeros(T, )
         log_use_sc_i = np.zeros(T, )
         log_pe_peak_i = np.zeros(T, )
+        log_h_i = np.zeros((T, dim_hidden))
 
         # run the model over time
         loss = 0
@@ -242,7 +244,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 if t in [16, 32, 64, 128, 256, 512]:
                     # print(t-len_cur_event, t)
                     # print(to_np(X[t-len_cur_event:t]))
-                    # print(np.mean(to_np(X[t-len_cur_event:t]),axis=0))
+                    # print(np.mean(to_np(Xcloss_it[t-len_cur_event:t]),axis=0))
                     sm.add_data(np.mean(to_np(X[t-len_cur_event:t]),axis=0), log_cid_fi_i[t])
 
                 #
@@ -261,6 +263,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
                 len_cur_event = 0
             len_cur_event += 1
 
+            log_h_i[t] = deepcopy(to_np(h_t))
             # print(f'len_cur_event = {len_cur_event}, cur/prev context id = {log_cid_i[t]}/{sc.prev_cluster_id}')
 
 
@@ -270,6 +273,9 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         log_reset_h[i] = log_reset_h_i
         log_use_sc[i] = log_use_sc_i
         log_pe_peak[i] = log_pe_peak_i
+        log_h[i] = log_h_i
+        # print(np.shape(log_h_i))
+        # print(log_h_i)
 
         print('Time elapsed = %.2f sec | Loss %.2f' % ((time.time() - t_start), loss / T))
     # save the final weights
@@ -284,6 +290,7 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
         'log_reset_h' : log_reset_h,
         'log_use_sc' : log_use_sc,
         'log_pe_peak' : log_pe_peak,
+        'log_h':log_h,
     }
     result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
     pickle_save(result_dict, result_fname)
