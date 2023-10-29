@@ -12,7 +12,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from sklearn.metrics import mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -108,11 +108,11 @@ decode sub event - test accuracy 0.516
 k = 45
 kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
 clustering_result = kmeans.predict(X_te)
-mi = mutual_info_score(clustering_result, Y_te)
+mi = adjusted_mutual_info_score(clustering_result, Y_te)
 print(f'mi = {mi}')
 
 # n_perms = 1000
-# mi_perm = [mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
+# mi_perm = [adjusted_mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
 #
 # f, ax = plt.subplots(1,1, figsize=(7,4))
 # # sns.violinplot(mi_perm, label='null distribution',ax=ax)
@@ -154,7 +154,7 @@ for di, d in enumerate(ds):
         none_mask = Y_hats_i == None
         percent_none[i] = np.mean(none_mask)
         if percent_none[i] < 1:
-            mis[i] = mutual_info_score(Y_hats_i[~none_mask], Y_te[~none_mask])
+            mis[i] = adjusted_mutual_info_score(Y_hats_i[~none_mask], Y_te[~none_mask])
 
     axes[0].plot(mis, color=cpal[di], label=f'd = {d}')
     axes[1].plot(percent_none, color=cpal[di])

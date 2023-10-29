@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.metrics import mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -83,7 +83,7 @@ Y_te = subev_ids_s[n_train_vecs:]
 unique, counts = np.unique(Y_te, return_counts=True)
 
 majority_guess_baseline = np.max(counts) / len(Y_te)
-uniform_guess_baseline = 1 / evlab.n_evnames
+uniform_guess_baseline = 1 / evlab.n_subev_names
 print(majority_guess_baseline)
 print(uniform_guess_baseline)
 
@@ -104,15 +104,15 @@ decode sub event - test accuracy 0.516
 k = 45
 kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
 clustering_result = kmeans.predict(X_te)
-mi = mutual_info_score(clustering_result, Y_te)
+mi = adjusted_mutual_info_score(clustering_result, Y_te)
 
 n_perms = 1000
-mi_perm = [mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
+mi_perm = [adjusted_mutual_info_score(clustering_result, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
 
 f, ax = plt.subplots(1,1, figsize=(7,4))
 # sns.violinplot(mi_perm, label='null distribution',ax=ax)
 ax.hist(mi_perm, label='null distribution')
-# ax.axvline(mi, ls='--', color='black', label='kNN clustering')
+ax.axvline(mi, ls='--', color='black', label='kNN clustering')
 ax.set_xlabel('mutual information')
 # ax.set_xlim([0, 2])
 ax.legend()

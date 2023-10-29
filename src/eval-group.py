@@ -19,7 +19,7 @@ from pathlib import Path
 from itertools import islice
 from tqdm import tqdm
 from collections import Counter
-from sklearn.metrics import confusion_matrix, mutual_info_score
+from sklearn.metrics import confusion_matrix, adjusted_mutual_info_score
 from scipy.stats import pointbiserialr, pearsonr
 from model import CGRU_v2 as Agent
 from utils import ID2CHAPTER
@@ -218,10 +218,10 @@ def compute_mi_with_perm(mod_evn_label, sub_evn_label, n_perms = 500):
         all_mod_evn_label_seg.extend(mod_evn_label_seg_i)
     for i in range(n_perms):
         random.shuffle(all_mod_evn_label_seg)
-        mi_perm[i] = mutual_info_score(
+        mi_perm[i] = adjusted_mutual_info_score(
             np.concatenate(all_mod_evn_label_seg), np.concatenate(sub_evn_label)
         )
-    mi = mutual_info_score(
+    mi = adjusted_mutual_info_score(
         np.concatenate(mod_evn_label), np.concatenate(sub_evn_label)
     )
     return mi_perm, mi
@@ -501,7 +501,7 @@ for subj_id, subj_id_ in enumerate(subj_ids):
         nan_mask = np.logical_or(np.isnan(log_cid_te_i_sec), np.isnan(sub_evn_label_i))
         sub_evn_label.append(np.array(sub_evn_label_i)[~nan_mask])
         mod_evn_label.append(np.array(log_cid_te_i_sec)[~nan_mask])
-        mi_g[subj_id, i] = mutual_info_score(sub_evn_label[i], mod_evn_label[i])
+        mi_g[subj_id, i] = adjusted_mutual_info_score(sub_evn_label[i], mod_evn_label[i])
 
     mi_perm_g[subj_id], mi_ob_g[subj_id] = compute_mi_with_perm(mod_evn_label, sub_evn_label)
     r_perm_c_g[subj_id], r_ob_c_g[subj_id] = compute_corr_with_perm(model_bounds_c, chbs)

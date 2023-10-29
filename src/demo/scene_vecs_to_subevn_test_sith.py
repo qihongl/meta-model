@@ -13,7 +13,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from sklearn.metrics import mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.decomposition import PCA
 from model import Vanilla_iSITH
@@ -156,10 +156,10 @@ print('decode sub event - SITH accuracy %.3f' % test_acc)
 # k = 35
 # kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
 # clustering_result = kmeans.predict(X_te)
-# mi = mutual_info_score(clustering_result, Y_te)
+# mi = adjusted_mutual_info_score(clustering_result, Y_te)
 #
 # n_perms = 1000
-# mi_perm = [mutual_info_score(Y_te, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
+# mi_perm = [adjusted_mutual_info_score(Y_te, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
 #
 # f, ax = plt.subplots(1,1, figsize=(7,4))
 # ax.hist(mi_perm, label='null distribution')

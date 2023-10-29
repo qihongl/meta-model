@@ -17,7 +17,7 @@ from copy import deepcopy
 from tqdm import tqdm
 from collections import Counter
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix, mutual_info_score
+from sklearn.metrics import confusion_matrix, adjusted_mutual_info_score
 # from scipy.stats import pointbiserialr, pearsonr
 # from model import CGRU as Agent
 from model import CGRU_v2 as Agent
@@ -558,7 +558,7 @@ for i, event_id in enumerate(event_id_list):
     nan_mask = np.logical_or(np.isnan(log_cid_te_i_sec), np.isnan(sub_evn_label_i))
     sub_evn_label.append(np.array(sub_evn_label_i)[~nan_mask])
     mod_evn_label.append(np.array(log_cid_te_i_sec)[~nan_mask])
-    mi[i] = mutual_info_score(sub_evn_label[i], mod_evn_label[i])
+    mi[i] = adjusted_mutual_info_score(sub_evn_label[i], mod_evn_label[i])
 
     # assert set(model_ctx_bound_loc_fi_f).issubset(set(model_ctx_bound_loc_f))
     # assert set(model_ctx_bound_loc_fi_c).issubset(set(model_ctx_bound_loc_c))
@@ -648,10 +648,10 @@ def compute_mi_with_perm(mod_evn_label, sub_evn_label, n_perms = 500):
         all_mod_evn_label_seg.extend(mod_evn_label_seg_i)
     for i in range(n_perms):
         random.shuffle(all_mod_evn_label_seg)
-        mi_perm[i] = mutual_info_score(
+        mi_perm[i] = adjusted_mutual_info_score(
             np.concatenate(all_mod_evn_label_seg), np.concatenate(sub_evn_label)
         )
-    mi = mutual_info_score(
+    mi = adjusted_mutual_info_score(
         np.concatenate(mod_evn_label), np.concatenate(sub_evn_label)
     )
     return mi_perm, mi

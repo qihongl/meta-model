@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from copy import deepcopy
 from scipy.spatial import distance_matrix
-from sklearn.metrics import mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA

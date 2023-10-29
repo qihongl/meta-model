@@ -12,7 +12,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from sklearn.metrics import mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
