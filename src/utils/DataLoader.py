@@ -28,7 +28,6 @@ class DataLoader:
     def get_x_pca(self, df):
         return pcat.transform(df['combined_resampled_df'].to_numpy())
 
-
     def get_frame1_time(self, df, to_sec=True, round=False):
         first_frame_id = df['combined_resampled_df'].index[0]
         if to_sec:
@@ -78,11 +77,16 @@ if __name__ == "__main__":
     import seaborn as sns
     import matplotlib.pyplot as plt
     sns.set(style='white', palette='colorblind', context='talk')
+    '''init '''
     dl = DataLoader()
-    fpath = dl.event_id_str_to_fpath('1.1.1')
+
+    df.head()
+    # fpath = dl.event_id_str_to_fpath('1.1.1')
     df = pickle_load(fpath)
-    df['combined_resampled_df']
+    # df['combined_resampled_df']
+
     x_pca = dl.get_x_pca(df)
     f1_time = dl.get_frame1_time(df)
+
     print(f1_time)
     type(df)

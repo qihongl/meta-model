@@ -7,3 +7,4 @@ from .EventLabel import EventLabel
 from .TrainValidSplit import TrainValidSplit
 from .HumanBondaries import HumanBondaries
 from .Parameters import Parameters
+from ._METAVideos import METAVideos
