@@ -15,7 +15,7 @@ class CGRU_v2(nn.Module):
     def __init__(
             self, input_dim, hidden_dim, output_dim, context_dim, ctx_wt=0,
             softmax_beta=None, try_reset_h=False,
-            bias=True, sigmoid_output=False, dropout_rate=0, zero_init_state=True,
+            bias=True, dropout_rate=0, zero_init_state=True,
         ):
         super(CGRU_v2, self).__init__()
         self.input_dim = input_dim
@@ -26,15 +26,12 @@ class CGRU_v2(nn.Module):
         # weights
         self.i2h = nn.Linear(input_dim+context_dim, 3 * hidden_dim, bias=bias)
         self.h2h = nn.Linear(hidden_dim+context_dim, 3 * hidden_dim, bias=bias)
+        self.h2h2 = nn.Linear(hidden_dim, hidden_dim, bias=bias)
         self.h2o = nn.Linear(hidden_dim, output_dim, bias=bias)
         # set dropout rate
         self.dropout_rate = dropout_rate
-        if self.dropout_rate > 0:
-            self.i2h_dropout = nn.Dropout(dropout_rate)
-            self.ci2h_dropout = nn.Dropout(dropout_rate)
-            self.h2o_dropout = nn.Dropout(dropout_rate)
+        if self.dropout_rate > 0: self.h2o_dropout = nn.Dropout(dropout_rate)
         # miscs
-        self.sigmoid_output = sigmoid_output
         self.zero_init_state = zero_init_state
         # optimization crit
         self.criterion = nn.MSELoss()
@@ -46,7 +43,6 @@ class CGRU_v2(nn.Module):
 
     def reset_parameters(self):
         std = 1.0 / math.sqrt(self.hidden_dim)
-        # std = 1.0 / self.hidden_dim
         for w in self.parameters():
             w.data.uniform_(-std, std)
 
@@ -69,7 +65,6 @@ class CGRU_v2(nn.Module):
         hc = torch.cat([hidden, context_t])
         gate_x = self.i2h(xc)
         gate_h = self.h2h(hc)
-
         # compute the gates
         gate_x = gate_x.squeeze()
         gate_h = gate_h.squeeze()
@@ -80,11 +75,13 @@ class CGRU_v2(nn.Module):
         newgate = torch.tanh(i_n + (resetgate * h_n))
         # compute h
         h_t = newgate + inputgate * (hidden - newgate)
+
+        lrelu = nn.LeakyReLU(.3)
         if self.dropout_rate > 0:
-            h_t = self.h2o_dropout(h_t)
-        yhat_t = self.h2o(h_t)
-        if self.sigmoid_output:
-            yhat_t = yhat_t.sigmoid()
+            h_t_do = self.h2o_dropout(h_t)
+            yhat_t = self.h2o(lrelu(h_t_do))
+        else:
+            yhat_t = self.h2o(lrelu(h_t))
 
         output = [yhat_t, h_t]
         cache = [resetgate, inputgate, newgate]
