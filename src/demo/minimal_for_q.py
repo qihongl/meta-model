@@ -33,7 +33,8 @@ bi_df_long
 # compare three models with human
 fig = go.Figure()
 # tag_names = ['full', 'uncertainty', 'pe', 'uncertainty_match_pe', 'pe_match_uncertainty']
-tag_names = ['full', 'uncertainty', 'pe', 'human', 'uncertainty_match_pe', 'pe_match_uncertainty', 'full_noskel', 'full_nosema']
+# tag_names = ['full', 'uncertainty', 'pe', 'human', 'uncertainty_match_pe', 'pe_match_uncertainty', 'full_noskel', 'full_nosema']
+tag_names = ['full', 'uncertainty', 'pe', 'human']
 # shifts = [0, -20, 20, -20, 20]
 shifts = [0, -20, 20, 40, -20, 20, -20, 20]
 widths = [35, 35, 50, 20, 35, 70, 35, 35]
@@ -46,7 +47,8 @@ df = bi_df_long[(bi_df_long.variable == 'bi_shuffle')
 fig.add_trace(
     go.Violin(x=df.training_time, y=df.value, name=f"Permutation_boundaries", fillcolor=colors[0],
               line_color=colors[0], opacity=0.6, points=point, width=widths[0],
-              legendrank=ranks[3])
+              legendrank=ranks[3]
+              )
 )
 # for i, tags in enumerate([full_tags_apr, uncertainty_tags, pe_tags_mar, uncertainty_match_pe_tags, pe_match_uncertainty_tags]):
 for i, tags in enumerate(tag_names):
@@ -63,7 +65,6 @@ for i, tags in enumerate(tag_names):
                   # mode='markers', marker=dict(size=5, color=colors[i+1])
                 # boxpoints='all'
     ))
-
 
 # fig.update_layout(layout, showlegend=True, width=1000, height=700)
 fig.update_layout(layout)
@@ -82,11 +83,46 @@ fig.update_layout(shapes=[{'type': 'line','y0':0,'y1': 0.05 * 0.5,
 fig.show()
 
 
+'''q's code'''
+def get_fina_pbr_vals(var_name, final_epoch=101):
+    # var_name='bi_shuffle'
+    df_perm = bi_df_long[(bi_df_long.variable == var_name)]
+    df_final = df_perm[df_perm.epoch == final_epoch]
+
+    df_final_full = df_final[df_final.sem_variant == 'full']
+    df_final_uncr = df_final[df_final.sem_variant == 'uncertainty']
+    df_final_pe = df_final[df_final.sem_variant == 'pe']
+    return df_final_full, df_final_uncr, df_final_pe
+
+df_p_full, df_p_uncr, df_p_pe = get_fina_pbr_vals('bi_shuffle')
+df_m_full, df_m_uncr, df_m_pe = get_fina_pbr_vals('bi')
+
+# import dabest
+dbest_dict = {'permutation': [], 'observed':[]}
+for tag in list(np.unique(df_m_full['tag'])):
+    perm_values = np.nanmean(df_p_full[df_p_full.tag == tag].value)
+    obsd_values = df_m_full[df_m_full.tag == tag].value
+    dbest_dict['permutation'].append(perm_values)
+    dbest_dict['observed'].append(np.squeeze(obsd_values))
+    print(perm_values, obsd_values)
+
+# dbest_df = pd.DataFrame(dbest_dict)
+# # Load the data into dabest
+# dabest_data = dabest.load(
+#     data=df, idx=list(data_dict.keys()), paired=True, id_col='ids'
+# )
+# dabest_data.mean_diff.plot(swarm_label='Values')
+
+
+
+'''q's code END'''
+
 mi_df_long = pd.read_csv('demo/data_tan/mi_all_variants.csv')
 
 fig = go.Figure()
 # note that there is no humans for MI, just adding so that color scheme is consistent with biserial
-tag_names = ['full', 'uncertainty', 'pe', 'human', 'uncertainty_match_pe', 'pe_match_uncertainty', 'full_noskel', 'full_nosema']
+# tag_names = ['full', 'uncertainty', 'pe', 'human', 'uncertainty_match_pe', 'pe_match_uncertainty', 'full_noskel', 'full_nosema']
+tag_names = ['full', 'uncertainty', 'pe', 'human']
 shifts = [0, -20, 20, 0, -20, 20, -20, 20]
 widths = [35, 50, 30, 10, 50, 50, 35, 35]
 point = 0

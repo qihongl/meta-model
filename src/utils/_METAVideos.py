@@ -5,6 +5,7 @@ import itertools
 
 from utils import to_pth
 from utils.io import pickle_load
+from utils import TrainValidSplit
 from scipy.cluster.hierarchy import dendrogram, linkage
 from utils._METAConstants import hier_struct, hlc2hlcid, mlc2mlcid, llc_names, llc2llcid, llc2mlcid, llc2hlcid
 
@@ -61,6 +62,7 @@ class METAVideos:
         self.n_ll_events_per_video = [len(v) for v in self.data_llc.values()]
         self.n_total_ll_events = sum([len(v) for v in self.data_llc.values()])
         # meta.n_total_ll_events
+        self.tvs = TrainValidSplit()
         # log str
         self.log_str = f'meta/min_len={min_len}-rm_mca-{exlude_multi_chapter}'
 
@@ -239,7 +241,6 @@ if __name__ == "__main__":
     print(meta.data.keys())
     print(np.shape(meta.data[video_id]))
     print(meta.data[video_id])
-    to_pth(meta.data[video_id])
     np.shape(meta.data[video_id])
     np.shape(np.concatenate(meta.data[video_id]))
 
@@ -248,6 +249,13 @@ if __name__ == "__main__":
     print(np.shape(meta.data_llc[video_id]))
     print(meta.data_llc[video_id])
     meta.get_video(video_id)
+
+
+    all_valid_llc_ids = {meta.llc2llcid[llc_ids]: 0 for llc_ids in meta.all_llc}
+    for valid_id_i in meta.tvs.valid_ids:
+        for llc_i in meta.data_llc[valid_id_i]:
+            all_valid_llc_ids[meta.llc2llcid[llc_i]] +=1
+    all_valid_llc_ids
 
 
     '''print out the number of event instances for each llc2llcid '''

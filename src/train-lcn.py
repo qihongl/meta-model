@@ -94,7 +94,7 @@ log_root = args.log_root
 # # full inference param
 # ctx_wt = .5
 # concentration = 1
-# stickiness = 32.0
+# stickiness = 4.0
 # lik_softmax_beta = .33
 # try_reset_h = False
 # # handoff param
@@ -106,7 +106,7 @@ log_root = args.log_root
 np.random.seed(subj_id+777)
 torch.manual_seed(subj_id+777)
 # init util objects
-# dl = DataLoader()
+dl = DataLoader()
 meta = METAVideos()
 tvs = TrainValidSplit()
 evlab = EventLabel()
@@ -184,7 +184,6 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     for i, pi in enumerate(permed_order):
         # '''TODO testing '''
         # i, pi, t = 0, 0, 0
-
         log_video_ids[i] = event_id_list[pi]
         # save data for every other k epochs
         if i % save_freq == 0:
@@ -291,14 +290,14 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
     result_fname = os.path.join(p.result_dir, f'results-train-{train_mode}.pkl')
     pickle_save(result_dict, result_fname)
     print('done')
-    return log_cid, log_cid_fi, log_cid_sc, loss_by_events, log_reset_h, log_use_sc, log_pe_peak
+    return log_cid, log_cid_fi, log_cid_sc, loss_by_events, log_reset_h, log_use_sc, log_pe_peak, log_h, log_video_ids, log_llc_ids
 
 
 '''evaluate loss on the validation set'''
 results_tr = run_model(tvs.train_ids, p=p, train_mode=True)
-[log_cid_tr, log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr, log_use_sc_tr, log_pe_peak_tr] = results_tr
+[log_cid_tr, log_cid_fi_tr, log_cid_sc_tr, loss_by_events_tr, log_reset_h_tr, log_use_sc_tr, log_pe_peak_tr, log_h_tr, log_video_ids_tr, log_llc_ids_tr] = results_tr
 results_te = run_model(tvs.valid_ids, p=p, train_mode=False)
-[log_cid_te, log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te, log_use_sc_te, log_pe_peak_te] = results_te
+[log_cid_te, log_cid_fi_te, log_cid_sc_te, loss_by_events_te, log_reset_h_te, log_use_sc_te, log_pe_peak_te, log_h_te, log_video_ids_te, log_llc_ids_te] = results_te
 
 
 '''plot the data '''
@@ -471,12 +470,12 @@ r_l_fine = np.zeros(len(log_cid_fi_te),)
 model_bounds_c, model_bounds_f, chbs, fhbs = [], [], [], []
 sub_evn_label, mod_evn_label = [], []
 
-event_id_list = tvs.valid_ids
+# event_id_list = tvs.valid_ids
+event_id_list = log_video_ids_te
 t_f1 = dl.get_1st_frame_ids(event_id_list)
 mi = np.zeros(len(event_id_list))
 for i, event_id in enumerate(event_id_list):
     # if i == 0: break
-
     actor_id, chapter_id, run_id = split_video_id(event_id)
 
     chb = hb.get_bound_prob(event_id_list[i], 'coarse', to_sec=True)
