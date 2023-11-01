@@ -137,6 +137,27 @@ class METAVideos:
     def get_low_level_cats(self):
         return get_leaves(hier_struct)
 
+    def compute_validation_set_mean_pattern(self):
+        valid_llc_ids = {self.llc2llcid[llc_ids]: 0 for llc_ids in self.all_llc}
+        valid_llc_mean_pattern = {self.llc2llcid[llc_ids]: [] for llc_ids in self.all_llc}
+        for valid_id_i in self.tvs.valid_ids:
+            for i, llc_i in enumerate(self.data_llc[valid_id_i]):
+                valid_llc_ids[self.llc2llcid[llc_i]] +=1
+                valid_llc_mean_pattern[self.llc2llcid[llc_i]].append(np.mean(self.data[valid_id_i][i],axis=0))
+        for i in range(self.n_llc):
+            if len(np.shape(valid_llc_mean_pattern[i])) == 1:
+                valid_llc_mean_pattern[i] = None
+            else:
+                valid_llc_mean_pattern[i] = np.mean(valid_llc_mean_pattern[i],axis=0)
+        # make label of which llc is in the validation set
+        llc_in_valid_set = np.array([valid_llc_mean_pattern[i] is not None for i in range(self.n_llc)])
+        return valid_llc_mean_pattern, llc_in_valid_set
+
+    def validation_set_llc_RDM(self):
+        valid_set_mean_pattern, llc_in_valid_set = self.compute_validation_set_mean_pattern()
+        valid_set_mean_pattern_rmnone = np.array([valid_set_mean_pattern[i] for i in range(len(llc_in_valid_set)) if llc_in_valid_set[i]])
+        return np.corrcoef(valid_set_mean_pattern_rmnone)
+
     '''plot utils'''
 
     def print_all_event_shapes(self):
@@ -248,14 +269,9 @@ if __name__ == "__main__":
     print(meta.data_llc.keys())
     print(np.shape(meta.data_llc[video_id]))
     print(meta.data_llc[video_id])
-    meta.get_video(video_id)
+    # cmeta.get_video(video_id
 
 
-    all_valid_llc_ids = {meta.llc2llcid[llc_ids]: 0 for llc_ids in meta.all_llc}
-    for valid_id_i in meta.tvs.valid_ids:
-        for llc_i in meta.data_llc[valid_id_i]:
-            all_valid_llc_ids[meta.llc2llcid[llc_i]] +=1
-    all_valid_llc_ids
 
 
     '''print out the number of event instances for each llc2llcid '''
