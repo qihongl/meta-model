@@ -1,6 +1,5 @@
 import numpy as np
-from scipy.stats import sem, pointbiserialr, pearsonr
-
+from scipy.stats import sem, pointbiserialr, pearsonr, spearmanr
 
 def pad_vector_to_same_length(a, b):
     # compute the padding size
@@ -106,6 +105,45 @@ def erwa(data, decay_factor):
     erwa_result = np.sum(weighted_data, axis=1) / np.sum(weights)
     return erwa_result
 
+def correlate_2RSMs(rsm1, rsm2, use_ranked_r=False):
+    """Compute the correlation between 2 RSMs (2nd order correlations)
+    Parameters
+    ----------
+    rsm_i: a 2d array in the form of (n_examples x n_examples)
+        a representational similarity matrix
+
+    Returns
+    -------
+    r: float
+        linear_correlation(rsm1, rsm2)
+    """
+    assert np.shape(rsm1) == np.shape(rsm2)
+    # only compare the lower triangular parts (w/o diagonal values)
+    rsm1_vec_lower = vectorize_lower_trigular_part(rsm1)
+    rsm2_vec_lower = vectorize_lower_trigular_part(rsm2)
+    # compute R
+    if use_ranked_r:
+        r_val, p_val = spearmanr(rsm1_vec_lower, rsm2_vec_lower)
+    else:
+        r_val, p_val = pearsonr(rsm1_vec_lower, rsm2_vec_lower)
+    return r_val, p_val
+
+
+def vectorize_lower_trigular_part(matrix):
+    """Exract the lower triangular entries for a matrix
+        useful for computing 2nd order similarity for 2 RDMs, where
+        diagonal values should be ignored
+    Parameters
+    ----------
+    matrix: a 2d array
+
+    Returns
+    -------
+    a vector of lower triangular entries
+    """
+    assert np.shape(matrix)[0] == np.shape(matrix)[1]
+    idx_lower = np.tril_indices(np.shape(matrix)[0], -1)
+    return matrix[idx_lower]
 
 if __name__ == "__main__":
     # x = np.array([0,1,0])
