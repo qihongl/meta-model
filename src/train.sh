@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 15:59:00
+#SBATCH -t 23:59:00
 #SBATCH -c 1
 #SBATCH --mem-per-cpu 2G
 
@@ -14,7 +14,7 @@ DT=$(date +%Y-%m-%d)
 
 echo $(date)
 
-srun python -u train-lcn.py \
+srun python -u train-lcn-wc2h.py \
     --subj_id ${1} \
     --lr ${2} \
     --update_freq ${3} \
