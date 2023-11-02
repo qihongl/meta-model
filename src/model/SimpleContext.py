@@ -75,8 +75,8 @@ class SimpleContext():
         if self.prev_cluster_id is not None:
             sticky_uniform_vec[self.prev_cluster_id] += self.stickiness
             # if try reset h then the last dim is the resetted context
-            if self.try_reset_h:
-                sticky_uniform_vec[-1] += self.stickiness
+            # if self.try_reset_h:
+            #     sticky_uniform_vec[-1] += self.stickiness
         prior = sticky_uniform_vec / np.sum(sticky_uniform_vec)
         if verbose:
             print('prior = ', prior)

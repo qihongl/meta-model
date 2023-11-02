@@ -26,7 +26,6 @@ class CGRU_v2(nn.Module):
         # weights
         self.i2h = nn.Linear(input_dim+context_dim, 3 * hidden_dim, bias=bias)
         self.h2h = nn.Linear(hidden_dim+context_dim, 3 * hidden_dim, bias=bias)
-        self.h2h2 = nn.Linear(hidden_dim, hidden_dim, bias=bias)
         self.h2o = nn.Linear(hidden_dim, output_dim, bias=bias)
         # set dropout rate
         self.dropout_rate = dropout_rate
@@ -141,8 +140,6 @@ class CGRU_v2(nn.Module):
         # # # softmax the pe
         # self.extend_pe_history(pe[1:])
         # pe[0] = torch.tensor(self.get_low_pe(n_std=-1))
-
-
 
         # print()
         # print('low pe = %.2f' % (pe[0]))
