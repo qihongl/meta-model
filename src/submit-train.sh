@@ -17,7 +17,7 @@ do
   do
     for update_freq in 4
     do
-      for dim_context in 128
+      for dim_context in 127
       do
         for dim_hidden in 16
         do

@@ -14,7 +14,7 @@ DT=$(date +%Y-%m-%d)
 
 echo $(date)
 
-srun python -u train-lcn-wc2h.py \
+srun python -u train-lcn.py \
     --subj_id ${1} \
     --lr ${2} \
     --update_freq ${3} \
