@@ -78,29 +78,29 @@ n_pe_std = args.n_pe_std
 exp_name = args.exp_name
 log_root = args.log_root
 
-# training param
-exp_name = 'testing'
-log_root = '../log'
-subj_id = 0
-#
-lr = 1e-3
-update_freq = 4
-# model param
-dim_hidden = 16
-dim_context = 128
-# shortcut params
-use_shortcut = False
-gen_grad = 1.0
-# full inference param
-ctx_wt = .5
-concentration = 1
-stickiness = 4.0
-lik_softmax_beta = .33
-try_reset_h = False
-# handoff param
-pe_tracker_size = 256
-match_tracker_size = 8
-n_pe_std = 3
+# # training param
+# exp_name = 'testing'
+# log_root = '../log'
+# subj_id = 0
+# #
+# lr = 1e-3
+# update_freq = 4
+# # model param
+# dim_hidden = 16
+# dim_context = 128
+# # shortcut params
+# use_shortcut = False
+# gen_grad = 1.0
+# # full inference param
+# ctx_wt = .5
+# concentration = 1
+# stickiness = 4.0
+# lik_softmax_beta = .33
+# try_reset_h = False
+# # handoff param
+# pe_tracker_size = 256
+# match_tracker_size = 8
+# n_pe_std = 3
 
 # set seed
 np.random.seed(subj_id+777)
