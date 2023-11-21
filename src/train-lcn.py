@@ -13,6 +13,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+
 from copy import deepcopy
 from tqdm import tqdm
 from collections import Counter
@@ -159,13 +160,9 @@ match_tracker = SimpleTracker(size=match_tracker_size)
 def run_model(event_id_list, p, train_mode, save_freq=10):
     # event_id_list = tvs.train_ids
     if train_mode:
-        learning = True
         _, c_vec = sc.init_context()
     else:
-        learning = True
         c_vec = sc.context[sc.prev_cluster_id]
-        # sc.freeze()
-        # c_vec = sc.context[0]
 
     # prealooc
     log_video_ids = [None for _ in range(len(event_id_list))]
@@ -256,6 +253,12 @@ def run_model(event_id_list, p, train_mode, save_freq=10):
 
             # increment the length of this event
             if log_cid_i[t-1] != sc.prev_cluster_id or log_reset_h_i[t]:
+                log_cid_fi_i[t-len_cur_event+1:t]
+                sm.add_data(np.nanmean(to_np(X[t-len_cur_event+1:t]),axis=0), )
+                b = Counter(log_cid_fi_i[t-len_cur_event+1:t])
+
+
+                len_cur_event
                 len_cur_event = 0
             len_cur_event += 1
 
@@ -827,36 +830,16 @@ fig_path = os.path.join(p.fig_dir, f'sc-p-act.png')
 f.savefig(fig_path, dpi=100, bbox_inches='tight')
 
 
-'''more segs if new actor or new chapter? - NO '''
-# boundaries vs. k-th time seeing an chapter/actor
-# - by # of new subevents is better?
-# log_cid_fi_all = log_cid_fi_tr + log_cid_fi_te
-# num_boundaries = np.concatenate([num_boundaries_tr, num_boundaries_te])
-# actor_ids = [None] * len(log_cid_fi_all)
-# chapter_ids = [None] * len(log_cid_fi_all)
-# n_actor_obs = np.zeros(len(log_cid_fi_all),)
-# n_chapter_obs = np.zeros(len(log_cid_fi_all),)
-# used_ctxs = set()
-# n_new_ctxs = np.zeros(len(log_cid_fi_all),)
-# for i, (event_id, log_cid_fi_i) in enumerate(zip(tvs.all_ids, log_cid_fi_all)):
-#     # if i > 10: break
-#     used_ctxs_up_to_i = set(log_cid_fi_i).union(used_ctxs)
-#     n_new_ctxs[i] = len(used_ctxs_up_to_i) - len(used_ctxs)
-#     actor_id, chapter_id, _ = split_video_id(event_id)
-#     # compute dependent vars - related to novelty
-#     n_actor_obs[i] = np.sum(np.array(actor_ids[:i]) == actor_id)
-#     n_chapter_obs[i] = np.sum(np.array(actor_ids[:i]) == chapter_id)
-#     # print(n_actor_obs[i], n_chapter_obs[i])
-#     # print(n_actor_obs, n_chapter_obs)
-#     # add this event id
-#     actor_ids[i], chapter_ids[i] = actor_id, chapter_id
-#
-# r,p = pearsonr(n_actor_obs, n_new_ctxs)
-# r,p = pearsonr(n_chapter_obs, n_new_ctxs)
-# r,p = pearsonr(n_actor_obs, num_boundaries)
-# r,p = pearsonr(n_chapter_obs, num_boundaries)
-
-
-# evlab.
-'''permutation and MI'''
-# evlab
+# np.shape(log_llc_ids_te[0])
+# np.shape(log_h_te[0])
+# # get all h for each llc
+# mean_patterns = {x: [] for x in range(meta.n_llc)}
+# for k, video_id in enumerate(log_video_ids_te):
+#     for i in np.arange(len(log_h_te[k])):
+#         mean_patterns[log_llc_ids_te[k][i+1]].append(log_h_te[k][i])
+# # compute the mean pattern
+# for i in range(meta.n_llc):
+#     if len(mean_patterns[i]) == 0:
+#         continue
+#     else:
+#         mean_patterns[i] = np.mean(mean_patterns[i],axis=0)

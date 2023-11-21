@@ -17,13 +17,13 @@ do
   do
     for update_freq in 4
     do
-      for dim_context in 127
+      for dim_context in 128
       do
         for dim_hidden in 16
         do
           for stickiness in 4
           do
-            for concentration in 1 1.5 2
+            for concentration in .75 1 1.5
             do
               for try_reset_h in 1 0
               do

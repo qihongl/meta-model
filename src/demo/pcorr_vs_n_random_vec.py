@@ -3,14 +3,14 @@
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from utils import compute_stats
+from utils.stats import compute_stats
 from scipy.stats import pearsonr
 sns.set(style='white', palette='colorblind', context='talk')
 
-n_sims = 2
+n_sims = 30
 more = 0
 
-f, axes = plt.subplots(1,2, figsize=(12, 5), sharey=True, sharex=True)
+f, axes = plt.subplots(1,2, figsize=(11, 5), sharey=True, sharex=True)
 
 d_list = [2**x for x in np.arange(4, 11)]
 max_d = max(d_list)
@@ -68,7 +68,7 @@ f.subplots_adjust(right=0.85)
 
 
 # plot the distribution directly
-f, ax = plt.subplots(1,1, figsize=(8,5))
+f, ax = plt.subplots(1,1, figsize=(7,5))
 for di, d in enumerate(d_list):
     sns.kdeplot(corrs_dict[d], color=cpal[di], ax=ax, label=f'{d}')
 ax.set_xlabel('pairwise correlation')

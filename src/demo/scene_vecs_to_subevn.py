@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-from sklearn.metrics import mutual_info_score
+from scipy.cluster.hierarchy import dendrogram, linkage
+from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.svm import LinearSVC
 from sklearn.decomposition import PCA
 from utils import ID2CHAPTER, split_video_id
@@ -26,6 +26,7 @@ evlab = EventLabel()
 # choose dataset
 event_id_list = tvs.all_ids
 t_f1 = np.zeros(len(event_id_list))
+
 
 subev_ids = []
 scene_vecs = []
@@ -94,10 +95,10 @@ from sklearn.cluster import KMeans
 k = 35
 kmeans = KMeans(n_clusters=k, random_state=0).fit(X_tr)
 clustering_result = kmeans.predict(X_te)
-mi = mutual_info_score(clustering_result, Y_te)
+mi = adjusted_mutual_info_score(clustering_result, Y_te)
 
 n_perms = 1000
-mi_perm = [mutual_info_score(Y_te, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
+mi_perm = [adjusted_mutual_info_score(Y_te, np.random.choice(range(k), len(Y_te))) for _ in range(n_perms)]
 
 f, ax = plt.subplots(1,1, figsize=(7,4))
 ax.hist(mi_perm, label='null distribution')
@@ -105,3 +106,66 @@ ax.axvline(mi, ls='--', color='black', label='kNN clustering')
 ax.set_xlabel('mutual information')
 ax.legend()
 sns.despine()
+
+
+'''hier cluster - event type level - sns'''
+c_cpal = sns.color_palette('colorblind', n_colors=5)
+c_cpal = np.roll(c_cpal,shift=1,axis=0)
+# compute the mean representation
+mean_sv = np.zeros((evlab.n_subev_names, 30))
+for i, evid  in enumerate(subev_ids):
+    mean_sv[evid,:] = np.mean(scene_vecs[subev_ids == evid, :],axis=0)
+# get the color for high level labels
+row_colors = np.array([c_cpal[i] for i in evlab.subevn2cat.values()])
+
+# remove multi-chapter action (mca)
+mask_rm_mca = np.array([v for v in evlab.subevn2cat.values()]) !=0
+mean_sv = mean_sv[mask_rm_mca]
+row_colors = row_colors[mask_rm_mca]
+yticklabels = evlab.all_subev_names[mask_rm_mca]
+metric = 'correlation'
+cg = sns.clustermap(
+    mean_sv,
+    col_cluster=0, row_cluster=1,
+    metric=metric,
+    row_colors=row_colors,
+    yticklabels=yticklabels,
+    dendrogram_ratio=[.5, 0],
+    figsize=(12, 12),
+    # cmap='viridis',
+    cbar_pos=(0.05, 0.05, .03, .15),
+    )
+cg.ax_heatmap.set_xlabel("Feature dimension")
+cg.ax_heatmap.set_xticks([0, 10, 20])
+cg.ax_heatmap.set_xticklabels([0, 10, 20])
+cg.ax_heatmap.set_title(f'metric={metric}')
+# color the text label
+for ytick in cg.ax_heatmap.get_yticklabels():
+    ytick.set_color(c_cpal[evlab.subevn2cat[ytick.get_text()]])
+
+cg.dendrogram_row.reordered_ind
+cg.dendrogram_row.linkage
+
+
+def make_dendrogram(linked, yticklabels):
+    def color_func(*args, **kwargs): return 'k'
+
+    f, ax = plt.subplots(1,1, figsize=(10, 14))
+    dendrogram(linked,
+               orientation='left',
+               labels=yticklabels,
+               distance_sort='descending', link_color_func=color_func,
+               show_leaf_counts=False, ax=ax)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.set_xticks([])
+    for ytick in ax.get_yticklabels():
+        ytick.set_color(c_cpal[evlab.subevn2cat[ytick.get_text()]])
+    ax.tick_params(axis='y', which='major', labelsize=18)
+    return f, ax
+
+
+linked = linkage(mean_sv, method='average', metric=metric)
+f, ax  = make_dendrogram(linked, yticklabels)

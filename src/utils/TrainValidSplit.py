@@ -28,7 +28,6 @@ class TrainValidSplit:
             self.n_train_files -=1
             self.n_files -=1
 
-
     def is_train_file(self, event_id_str):
         """
         event_id_str: str in the form of 'x.y.z'
