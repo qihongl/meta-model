@@ -1,5 +1,6 @@
-# meta-model
-model - Multi-angle Extended Three-dimensional Activity (META) stimulus set
+# LCNet-meta-modeling
+
+Model the META data
 
 META data: https://osf.io/3f9d2/
 
