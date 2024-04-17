@@ -1,4 +1,7 @@
 # LCNet-meta-modeling
+This is the repo for the following paper:
+
+Lu, Q., Nguyen, T. T., Zhang, Q., Hasson, U., Griffiths, T. L., Zacks, J. M., Gershman, S. J., & Norman, K. A. (2023). **Reconciling Shared versus Context-Specific Information in a Neural Network Model of Latent Causes.** In arXiv [q-bio.NC]. arXiv. http://arxiv.org/abs/2312.08519
 
 This repo contains the code for Simulation 3 using the [META data](https://psyarxiv.com/pt6hx/).   
 
